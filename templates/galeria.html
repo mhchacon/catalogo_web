@@ -19,10 +19,11 @@
                 <div class="col-md-6">
                     <input type="text" id="search_input_galeria" name="search" class="form-control" value="{{ search_query if search_query else '' }}">
                 </div>
+                <input type="hidden" name="tabela_preco" value="{{ tabela_preco_selecionada }}">
                 <div class="col-auto">
                     <button type="submit" class="btn btn-secondary">Buscar</button>
                     {% if search_query %}
-                    <a href="{{ url_for('galeria') }}" class="btn btn-outline-secondary">Limpar Busca</a>
+                    <a href="{{ url_for('galeria', tabela_preco=tabela_preco_selecionada) }}" class="btn btn-outline-secondary">Limpar Busca</a>
                     {% endif %}
                 </div>
             </div>
@@ -30,23 +31,49 @@
     </div>
 </div>
 
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Selecionar Tabela de Preço</h5>
+    </div>
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-2">
+            {% set tabelas_preco = [
+                ('TABELA_VAREJO_5_000', 'Varejo 5k'),
+                ('TABELA_VAREJO_25_000', 'Varejo 25k'),
+                ('TABELA_VAREJO_50_000', 'Varejo 50k'),
+                ('TABELA_ATACADO', 'Atacado'),
+                ('TABELA_GOLD_PARCEIRO', 'Gold Parceiro'),
+                ('TABELA_ATACADO_AMAZONIA_E_MACAPA', 'Atacado Amaz/Mac'),
+                ('TABELA_ACRE_E_RONDONIA', 'Acre/Rondônia')
+            ] %}
+            {% for tabela_campo, tabela_label in tabelas_preco %}
+                <a href="{{ url_for('galeria', page=current_page, search=search_query, tabela_preco=tabela_campo) }}"
+                   class="btn {% if tabela_campo == tabela_preco_selecionada %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                    {{ tabela_label }}
+                </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
 {% if current_user.is_authenticated and current_user.role == 'dono' %}
 <form method="POST" action="{{ url_for('salvar_decisoes') }}">
-    <!-- Campos ocultos para manter o estado da página e busca -->
+    <!-- Campos ocultos para manter o estado da página, busca e tabela de preço selecionada -->
     <input type="hidden" name="current_page" value="{{ current_page }}">
     <input type="hidden" name="search_query" value="{{ search_query }}">
+    <input type="hidden" name="tabela_preco" value="{{ tabela_preco_selecionada }}">
 {% endif %}
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-        {% for produto in produtos %}
-            {# Exibir produto se tiver imagem ou se o usuário for dono #}
-            {% if produto.caminho_imagem or (current_user.is_authenticated and current_user.role == 'dono') %}
+        {% for produto_agrupado in produtos %}
+            {# Exibir produto se tiver imagem no main_product ou se o usuário for dono #}
+            {% if produto_agrupado.caminho_imagem or (current_user.is_authenticated and current_user.role == 'dono') %}
             <div class="col">
-                <div class="card product-card">
-                    {# Exibir a imagem APENAS se existir um caminho de imagem #}
-                    {% if produto.caminho_imagem %}
-                    <img src="{{ url_for('static', filename=produto.caminho_imagem) }}" 
+                <div class="card product-card" data-codigo-base="{{ produto_agrupado.codigo_base }}">
+                    {# Exibir a imagem APENAS se existir um caminho de imagem no main_product #}
+                    {% if produto_agrupado.caminho_imagem %}
+                    <img src="{{ url_for('static', filename=produto_agrupado.caminho_imagem) }}" 
                          class="card-img-top product-image" 
-                         alt="{{ produto.descricao_produto }}">
+                         alt="{{ produto_agrupado.descricao_produto }}">
                     {% else %}
                     {# Placeholder para produtos sem imagem #}
                     <div class="product-image-placeholder d-flex justify-content-center align-items-center bg-light text-muted">
@@ -54,36 +81,62 @@
                     </div>
                     {% endif %}
                     <div class="card-body">
-                        <p class="card-text">{{ produto.descricao_produto }}</p>
+                        <p class="card-text">{{ produto_agrupado.descricao_produto }}</p>
                         <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">Código: {{ produto.codigo_produto }}</small>
-                            {% if current_user.is_authenticated and current_user.role == 'dono' %}
-                                <div class="input-group input-group-sm" style="width: 100px;">
-                                    <span class="input-group-text">R$</span>
-                                    <input type="number" 
-                                           class="form-control" 
-                                           name="preco_csl_{{ produto.codigo_produto }}" 
-                                           value="{{ produto.Preco_CSL | default(0) }}" 
-                                           step="0.01" min="0">
+                            <small class="text-muted">Código Base: {{ produto_agrupado.codigo_base }}</small>
+                            {# O preço agora será atualizado pelo script JS #}
+                            <h5 class="mb-0 price-display">R$ N/A</h5> {# Placeholder para o preço #}
+                        </div>
+
+                        {# Seção de seleção de cores #}
+                        {% if produto_agrupado.variants | length > 0 %}
+                            <div class="mt-3">
+                                <h6 class="mb-2">Cores Disponíveis:</h6>
+                                <div class="d-flex flex-wrap gap-2 color-options">
+                                    {% for variant in produto_agrupado.variants %}
+                                        <button type="button" 
+                                                class="btn btn-sm {% if loop.first %}btn-primary{% else %}btn-outline-secondary{% endif %} color-button"
+                                                data-codigo-produto="{{ variant.codigo_produto }}"
+                                                data-precos='{{ variant.precos | tojson }}'>
+                                            {{ variant.get('Desc_Cor', variant.codigo_produto[-1:] if variant.codigo_produto|length > 0 else 'N/A' ) }} {# Mostra Desc_Cor ou o último dígito #}
+                                        </button>
+                                    {% endfor %}
                                 </div>
-                            {% else %}
-                                <h5 class="mb-0">R$ {{ produto.Preco_CSL | default('N/A') }}</h5>
-                            {% endif %}
-                        </div>
-                        {% if current_user.is_authenticated and current_user.role == 'dono' %}
-                        <div class="form-check">
-                            <input class="form-check-input" 
-                                   type="checkbox" 
-                                   name="produto_{{ produto.codigo_produto }}" 
-                                   id="produto_{{ produto.codigo_produto }}"
-                                   {% if produto.ativo_catalogo %}checked{% endif %}>
-                            <label class="form-check-label" for="produto_{{ produto.codigo_produto }}">
-                                Manter no Catálogo de Venda
-                            </label>
-                            <!-- Campo oculto para listar códigos de produtos visíveis na página -->
-                            <input type="hidden" name="produto_codigo[]" value="{{ produto.codigo_produto }}">
-                        </div>
+                            </div>
                         {% endif %}
+
+                        {% if current_user.is_authenticated and current_user.role == 'dono' %}
+                            {# Para o dono, manter a opção de selecionar ativo_catalogo e talvez editar preços #}
+                            {# A lógica de edição de preço para o dono precisará ser adaptada para as variantes #}
+                             <div class="form-check mt-3">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       name="ativo_catalogo_{{ produto_agrupado.codigo_base }}" {# Usando o codigo_base para o checkbox #}
+                                       id="ativo_catalogo_{{ produto_agrupado.codigo_base }}"
+                                       {% if produto_agrupado.ativo_catalogo %}checked{% endif %}>
+                                <label class="form-check-label" for="ativo_catalogo_{{ produto_agrupado.codigo_base }}">
+                                    Manter este grupo no Catálogo de Venda
+                                </label>
+                                {# Enviamos o codigo_base e o status ativo para o backend #}
+                                <input type="hidden" name="grupo_codigo_base[]" value="{{ produto_agrupado.codigo_base }}">
+                            </div>
+
+                            {# Adicionar campos de input para o dono editar preços das variantes #}
+                            {% for variant in produto_agrupado.variants %}
+                                <div class="mt-2">
+                                     <small class="text-muted">Preço {{ variant.get('Desc_Cor', variant.codigo_produto[-1:] if variant.codigo_produto|length > 0 else 'N/A') }} ({{ variant.codigo_produto }}):</small>
+                                      <div class="input-group input-group-sm">
+                                          <span class="input-group-text">R$</span>
+                                           <input type="number" 
+                                                  class="form-control" 
+                                                   name="preco_{{ tabela_preco_selecionada }}_{{ variant.codigo_produto }}" {# Name formatado: preco_TABELA_CODIGOCOMPLETO #}
+                                                   value="{{ variant.precos.get(tabela_preco_selecionada, 0) | default(0) }}" 
+                                                   step="0.01" min="0">
+                                      </div>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+
                     </div>
                 </div>
             </div>
@@ -101,12 +154,12 @@
     <nav aria-label="Navegação de Produtos" class="mt-4">
         <ul class="pagination justify-content-center">
             <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('galeria', page=1, search=search_query) }}" aria-label="Primeira">
+                <a class="page-link" href="{{ url_for('galeria', page=1, search=search_query, tabela_preco=tabela_preco_selecionada) }}" aria-label="Primeira">
                     <span aria-hidden="true">&laquo;&laquo;</span>
                 </a>
             </li>
             <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('galeria', page=current_page - 1, search=search_query) }}" aria-label="Anterior">
+                <a class="page-link" href="{{ url_for('galeria', page=current_page - 1, search=search_query, tabela_preco=tabela_preco_selecionada) }}" aria-label="Anterior">
                     <span aria-hidden="true">&laquo;</span>
                 </a>
             </li>
@@ -115,18 +168,18 @@
             {% set end_page = (current_page + 2) if (current_page + 2) <= total_pages else total_pages %}
 
             {% for page_num in range(start_page, end_page + 1) %}
-                <li class="page-item {% if page_num == current_page %}active{% endif %}">
-                    <a class="page-link" href="{{ url_for('galeria', page=page_num, search=search_query) }}">{{ page_num }}</a>
+                <li class="page-item {% if page_num == current_page %}active{% endif %}>">
+                    <a class="page-link" href="{{ url_for('galeria', page=page_num, search=search_query, tabela_preco=tabela_preco_selecionada) }}">{{ page_num }}</a>
                 </li>
             {% endfor %}
 
-            <li class="page-item {% if current_page == total_pages or total_pages == 0 %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('galeria', page=current_page + 1, search=search_query) }}" aria-label="Próxima">
+            <li class="page-item {% if current_page == total_pages or total_pages == 0 %}disabled{% endif %}>">
+                <a class="page-link" href="{{ url_for('galeria', page=current_page + 1, search=search_query, tabela_preco=tabela_preco_selecionada) }}" aria-label="Próxima">
                     <span aria-hidden="true">&raquo;</span>
                 </a>
             </li>
-            <li class="page-item {% if current_page == total_pages or total_pages == 0 %}disabled{% endif %}">
-                <a class="page-link" href="{{ url_for('galeria', page=total_pages, search=search_query) }}" aria-label="Última">
+            <li class="page-item {% if current_page == total_pages or total_pages == 0 %}disabled{% endif %}>">
+                <a class="page-link" href="{{ url_for('galeria', page=total_pages, search=search_query, tabela_preco=tabela_preco_selecionada) }}" aria-label="Última">
                     <span aria-hidden="true">&raquo;&raquo;</span>
                 </a>
             </li>
@@ -136,4 +189,79 @@
 {% if current_user.is_authenticated and current_user.role == 'dono' %}
 </form>
 {% endif %}
-{% endblock %} 
+{% endblock %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Obter a tabela de preço selecionada do atributo data no corpo
+    // const tabelaPrecoSelecionada = document.body.dataset.tabelaPrecoSelecionada; // Alternativa se for definida no body
+    const tabelaPrecoSelecionadaElement = document.querySelector('a.btn.btn-primary[href*="tabela_preco="]');
+    let tabelaPrecoSelecionada = 'TABELA_VAREJO_5_000'; // Default
+    if (tabelaPrecoSelecionadaElement) {
+        const urlParams = new URLSearchParams(tabelaPrecoSelecionadaElement.href.split('?')[1]);
+        tabelaPrecoSelecionada = urlParams.get('tabela_preco') || 'TABELA_VAREJO_5_000';
+    } else { // Fallback se nenhum botão primary for encontrado (e.g., primeira carga sem parâmetro na URL)
+         const urlParams = new URLSearchParams(window.location.search);
+         tabelaPrecoSelecionada = urlParams.get('tabela_preco') || 'TABELA_VAREJO_5_000';
+    }
+
+    console.log('Tabela de Preço Selecionada (ao carregar): ', tabelaPrecoSelecionada);
+
+    // Função para atualizar o preço exibido no card
+    function updatePriceDisplay(cardElement, precos) {
+        const priceDisplay = cardElement.querySelector('.price-display');
+        if (priceDisplay) {
+            const preco = precos[tabelaPrecoSelecionada];
+            priceDisplay.textContent = `R$ ${preco !== undefined && preco !== null ? parseFloat(preco).toFixed(2) : 'N/A'}`;
+        }
+    }
+
+    // Adicionar listeners aos botões de cor
+    document.querySelectorAll('.color-options .color-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const cardBody = this.closest('.card-body');
+            const cardElement = this.closest('.card');
+            const precos = JSON.parse(this.dataset.precos);
+
+            // Remove a classe 'btn-primary' de todos os botões de cor no mesmo grupo e adiciona 'btn-outline-secondary'
+            cardBody.querySelectorAll('.color-button').forEach(btn => {
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-outline-secondary');
+            });
+            // Adiciona a classe 'btn-primary' ao botão clicado
+            this.classList.remove('btn-outline-secondary');
+            this.classList.add('btn-primary');
+
+            console.log('Botão de cor clicado. Código Produto:', this.dataset.codigoProduto);
+            console.log('Preços da Variante Clicada:', precos);
+            console.log('Tabela de Preço Selecionada (ao clicar): ', tabelaPrecoSelecionada);
+
+            // Atualizar o preço exibido no card
+            updatePriceDisplay(cardElement, precos);
+
+             // Opcional: Atualizar a imagem do produto (requer caminhos de imagem por variante do backend)
+             // const productImage = cardElement.querySelector('.card-img-top');
+             // if (productImage) { ... lógica para encontrar e definir a imagem da variante selecionada ... }
+        });
+    });
+
+    // Atualizar preços inicialmente com base na tabela selecionada no topo
+    document.querySelectorAll('.product-card').forEach(card => {
+        // Para cada card, encontrar o botão de cor selecionado (class btn-primary) ou o primeiro botão
+        const selectedColorButton = card.querySelector('.color-button.btn-primary') || card.querySelector('.color-button');
+        if (selectedColorButton) {
+             const precos = JSON.parse(selectedColorButton.dataset.precos);
+             updatePriceDisplay(card, precos);
+
+             console.log('Preços da Variante Inicial (ao carregar):', precos);
+
+             // Garantir que o primeiro botão seja marcado como primary se nenhum estiver selecionado
+             if (!card.querySelector('.color-button.btn-primary')) {
+                  selectedColorButton.classList.remove('btn-outline-secondary');
+                  selectedColorButton.classList.add('btn-primary');
+             }
+        }
+    });
+
+});
+</script> 

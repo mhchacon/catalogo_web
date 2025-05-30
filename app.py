@@ -101,46 +101,139 @@ def logout():
 def galeria():
     if produtos_collection is None:
          flash('Erro: Conexão com o MongoDB não estabelecida.')
-         return render_template('galeria.html', produtos=[], total_pages=0, current_page=1, search_query='')
+         return render_template('galeria.html', produtos=[], total_pages=0, current_page=1, search_query='', tabela_preco_selecionada='TABELA_VAREJO_5_000')
 
     page = request.args.get('page', 1, type=int)
     search_query = request.args.get('search', '')
+    tabela_preco_selecionada = request.args.get('tabela_preco', 'TABELA_VAREJO_5_000') # Default para TABELA_VAREJO_5_000
     per_page = 24 # Quantidade de produtos por página na galeria
 
-    query = {}
-    # Se o usuário for 'dono', removemos o filtro de ativo_catalogo
+    # Pipeline de agregação para agrupar por código base e incluir variantes
+    pipeline = []
+
+    # Estágio 1: Filtro inicial (ativo_catalogo e busca)
+    match_query = {}
+    # Recolocando o filtro de ativo_catalogo para usuários que não são o dono
     if not (current_user.is_authenticated and current_user.role == 'dono'):
-        query['ativo_catalogo'] = True
+        match_query['ativo_catalogo'] = True
 
     if search_query:
-        # Busca por descrição (case-insensitive)
-        # Usar re.escape para garantir que caracteres especiais no termo de busca sejam tratados
-        query['descricao_produto'] = {'$regex': re.escape(search_query), '$options': 'i'}
+        # Busca por descrição (case-insensitive) em todas as variantes antes de agrupar
+        match_query['descricao_produto'] = {'$regex': re.escape(search_query), '$options': 'i'}
+        
+    pipeline.append({'$match': match_query})
 
+    # Estágio 2: Adicionar codigo_base
+    # Remove o último caractere do codigo_produto para criar o código base
+    pipeline.append({
+        '$addFields': {
+            'codigo_base': { '$substrCP': ['$codigo_produto', 0, { '$subtract': [{'$strLenCP': '$codigo_produto'}, 1] }] }
+        }
+    })
+    
+    # Estágio 3: Agrupar por codigo_base e coletar variantes
+    # Também encontrar o produto 'principal' (BRANCO) para o card
+    pipeline.append({
+        '$group': {
+            '_id': '$codigo_base',
+            'variants': { '$push': '$$ROOT' },
+            'main_product': { # Tenta encontrar o produto BRANCO (código termina em 1 ou Desc_Cor é BRANCO)
+                '$first': { # Usamos $first após ordenar/filtrar implicitamente na lista 'variants'
+                    '$filter': {
+                        'input': '$variants',
+                        'as': 'variant',
+                        'cond': { '$or': [
+                            { '$eq': [{ '$substrCP': [{'$ifNull': ['$$variant.codigo_produto', '']}, { '$subtract': [{'$strLenCP': {'$ifNull': ['$$variant.codigo_produto', '']}}, 1] }, 1] }, '1'] },
+                            { '$eq': [{'$ifNull': ['$$variant.Desc_Cor', '']}, 'BRANCO'] }
+                        ]}
+                    }
+                 }
+            }
+        }
+    })
+    
+    # Estágio 4: Projetar o resultado para ter a estrutura desejada
+    # Usar o main_product encontrado, ou o primeiro da lista de variantes se nenhum BRANCO for encontrado
+    # Note: $first dentro de $group pode retornar null se o filtro não encontrar nada. 
+    # Precisamos garantir que main_product seja um objeto válido.
+    pipeline.append({
+        '$project': {
+            '_id': 0, # Remove o _id do grupo
+            'codigo_base': '$_id', # Renomeia _id do grupo para codigo_base
+            'main_product': { 
+                '$ifNull': ['$main_product', { '$arrayElemAt': ['$variants', 0] }] } # Usa main_product se existir, senão o primeiro da lista
+            ,
+            'variants': '$variants' # Mantém a lista completa de variantes
+        }
+    })
+    
+    # Precisamos contar o total de produtos agrupados *antes* de aplicar skip/limit para paginação correta
+    # Criar um pipeline separado para a contagem
+    count_pipeline = pipeline[:-1] # Usa todos os estágios exceto o último ($project)
+    count_pipeline.append({'$count': 'total'})
+
+    total_produtos_agrupados = 0
     try:
-        total_produtos = produtos_collection.count_documents(query)
-        total_pages = math.ceil(total_produtos / per_page)
-        
-        # Garante que a página solicitada é válida
-        if page < 1:
-            page = 1
-        elif page > total_pages and total_pages > 0:
-            page = total_pages
-        elif total_pages == 0:
-             page = 1
+        count_result = list(produtos_collection.aggregate(count_pipeline))
+        if count_result:
+            total_produtos_agrupados = count_result[0].get('total', 0)
+    except Exception as e:
+        print(f"Erro ao contar produtos agrupados: {str(e)}")
+        # Continua com 0 se houver erro na contagem
 
-        skip = (page - 1) * per_page
-        produtos = list(produtos_collection.find(query).skip(skip).limit(per_page))
+    total_pages = math.ceil(total_produtos_agrupados / per_page)
+
+    # Garante que a página solicitada é válida
+    if page < 1:
+        page = 1
+    elif page > total_pages and total_pages > 0:
+        page = total_pages
+    elif total_pages == 0: # Se não houver produtos, a página é 1 mas o skip/limit não trará resultados
+         page = 1
+
+    skip = (page - 1) * per_page
+    
+    # Estágios para paginação
+    pipeline.append({'$skip': skip})
+    pipeline.append({'$limit': per_page})
+    
+    # Executar o pipeline de agregação
+    produtos_agrupados = []
+    try:
+        produtos_agrupados = list(produtos_collection.aggregate(pipeline))
         
+        # Processar os resultados para ter uma estrutura mais amigável no template
+        produtos_para_template = []
+        for grupo in produtos_agrupados:
+            main_prod = grupo['main_product']
+            variants_list = []
+            for variant in grupo['variants']:
+                variant_data = {
+                    'codigo_produto': variant.get('codigo_produto'),
+                    'Desc_Cor': variant.get('Desc_Cor', 'Não Informado'),
+                    # Coletar todos os campos que não são os principais
+                    'precos': {k: v for k, v in variant.items() if k not in ['_id', 'codigo_produto', 'descricao_produto', 'caminho_imagem', 'ativo_catalogo', 'codigo_base', 'Desc_Cor']}
+                }
+                variants_list.append(variant_data)
+                
+            produtos_para_template.append({
+                'codigo_base': grupo['codigo_base'],
+                'descricao_produto': main_prod.get('descricao_produto'),
+                'caminho_imagem': main_prod.get('caminho_imagem'),
+                'ativo_catalogo': main_prod.get('ativo_catalogo', False), # Default False se não existir
+                'variants': variants_list
+            })
+            
         return render_template('galeria.html', 
-                               produtos=produtos, 
+                               produtos=produtos_para_template, 
                                total_pages=total_pages, 
                                current_page=page,
-                               search_query=search_query)
+                               search_query=search_query,
+                               tabela_preco_selecionada=tabela_preco_selecionada)
     except Exception as e:
         flash(f'Erro ao carregar produtos na galeria: {str(e)}')
         print(f"Erro na rota /galeria: {str(e)}")
-        return render_template('galeria.html', produtos=[], total_pages=0, current_page=1, search_query=search_query)
+        return render_template('galeria.html', produtos=[], total_pages=0, current_page=1, search_query=search_query, tabela_preco_selecionada=tabela_preco_selecionada)
 
 @app.route('/admin')
 @login_required
@@ -373,52 +466,51 @@ def upload_imagem():
 @login_required
 def salvar_decisoes():
     if current_user.role != 'dono':
-        flash('Acesso não autorizado')
+        flash('Acesso não autorizado.', 'danger')
         return redirect(url_for('galeria'))
-
-    if produtos_collection is None:
-         flash('Erro: Conexão com o MongoDB não estabelecida.')
-         # Redirecionar para a galeria, já que o dono só interage lá
-         return redirect(url_for('galeria'))
     
     try:
-        # Obter todos os códigos de produtos visíveis na página atual da galeria
-        # Isso evita sobrescrever o status de produtos em outras páginas
-        produtos_visiveis_codigos = request.form.getlist('produto_codigo[]')
+        # Obter todos os campos do formulário
+        form_data = request.form.to_dict()
         
-        # Para cada produto visível na página, atualiza seu status no DB
-        for codigo in produtos_visiveis_codigos:
-             # O checkbox só estará no request.form se estiver marcado
-             ativo = request.form.get(f'produto_{codigo}') == 'on'
-
-             # Obter o valor do preço CSL do campo de input, se existir (apenas para 'dono')
-             preco_csl_str = request.form.get(f'preco_csl_{codigo}')
-             update_fields = {'ativo_catalogo': ativo}
-
-             if preco_csl_str is not None:
-                 try:
-                     # Converte o preço para float
-                     preco_csl_float = float(preco_csl_str)
-                     update_fields['Preco_CSL'] = preco_csl_float
-                 except ValueError:
-                     # Tratar caso o valor não seja um número válido (opcional)
-                     print(f"Aviso: Preço CSL inválido para o produto {codigo}: {preco_csl_str}")
-                     # Você pode optar por não atualizar o campo, manter o valor anterior, ou definir como None
-
-             produtos_collection.update_one(
-                 {'codigo_produto': codigo},
-                 {'$set': update_fields}
-             )
-
-        flash('Decisões salvas com sucesso')
+        # Processar cada produto
+        for key, value in form_data.items():
+            if key.startswith('produto_') and key != 'produto_codigo[]':
+                codigo_produto = key.replace('produto_', '')
+                ativo_catalogo = value == 'on'
+                
+                # Atualizar o status ativo_catalogo
+                produtos_collection.update_one(
+                    {'codigo_produto': codigo_produto},
+                    {'$set': {'ativo_catalogo': ativo_catalogo}}
+                )
+            
+            # Processar alterações de preço
+            elif key.startswith('preco_'):
+                # Formato esperado: preco_TABELA_CODIGO
+                parts = key.split('_')
+                if len(parts) >= 3:
+                    tabela = '_'.join(parts[1:-1])  # Junta todas as partes do meio para formar o nome da tabela
+                    codigo_produto = parts[-1]
+                    try:
+                        valor = float(value)
+                        # Atualizar o preço na tabela específica
+                        produtos_collection.update_one(
+                            {'codigo_produto': codigo_produto},
+                            {'$set': {tabela: valor}}
+                        )
+                    except ValueError:
+                        continue  # Ignora valores inválidos
+        
+        flash('Decisões salvas com sucesso!', 'success')
     except Exception as e:
-        flash(f'Erro ao salvar decisões: {str(e)}')
-        print(f"Erro na rota /salvar_decisoes: {str(e)}")
+        flash(f'Erro ao salvar decisões: {str(e)}', 'danger')
     
-    # Redirecionar de volta para a galeria para o dono, mantendo a página e busca atuais
-    current_page = request.form.get('current_page', 1, type=int)
+    # Redirecionar de volta para a galeria mantendo os parâmetros da página
+    current_page = request.form.get('current_page', 1)
     search_query = request.form.get('search_query', '')
-    return redirect(url_for('galeria', page=current_page, search=search_query))
+    tabela_preco = request.form.get('tabela_preco', '')
+    return redirect(url_for('galeria', page=current_page, search=search_query, tabela_preco=tabela_preco))
 
 @app.route('/exportar_protheus')
 @login_required

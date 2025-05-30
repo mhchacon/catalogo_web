@@ -87,9 +87,9 @@
                     <tr>
                         <th>Código</th>
                         <th>Descrição</th>
-                        <th>Status</th>
+                        <th>Ativo Catálogo</th>
                         <th>Imagem</th>
-                        <th>Preço CSL</th>
+                        <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -97,13 +97,7 @@
                     <tr>
                         <td>{{ produto.codigo_produto }}</td>
                         <td>{{ produto.descricao_produto }}</td>
-                        <td>
-                            {% if produto.ativo_catalogo %}
-                            <span class="badge bg-success">Ativo</span>
-                            {% else %}
-                            <span class="badge bg-danger">Inativo</span>
-                            {% endif %}
-                        </td>
+                        <td>{{ "ATIVO" if produto.ativo_catalogo else "INATIVO" }}</td>
                         <td>
                             {% if produto.caminho_imagem %}
                             <span class="badge bg-success">Sim</span>
@@ -111,7 +105,10 @@
                             <span class="badge bg-warning">Não</span>
                             {% endif %}
                         </td>
-                        <td>{{ produto.Preco_CSL | default('N/A') }}</td>
+                        <td>
+                            <a href="{{ url_for('editar_produto', codigo_produto=produto.codigo_produto) }}" class="btn btn-primary">Editar</a>
+                            <a href="{{ url_for('excluir_produto', codigo_produto=produto.codigo_produto) }}" class="btn btn-danger">Excluir</a>
+                        </td>
                     </tr>
                     {% else %}
                     <tr>
