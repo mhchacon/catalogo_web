@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}Galeria de Produtos{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Galeria de Produtos</h2>
+
+<!-- Seção de busca -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Buscar Produtos</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('galeria') }}">
+            <div class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <label for="search_input_galeria" class="col-form-label">Descrição:</label>
+                </div>
+                <div class="col-md-6">
+                    <input type="text" id="search_input_galeria" name="search" class="form-control" value="{{ search_query if search_query else '' }}">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-secondary">Buscar</button>
+                    {% if search_query %}
+                    <a href="{{ url_for('galeria') }}" class="btn btn-outline-secondary">Limpar Busca</a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if current_user.is_authenticated and current_user.role == 'dono' %}
+<form method="POST" action="{{ url_for('salvar_decisoes') }}">
+    <!-- Campos ocultos para manter o estado da página e busca -->
+    <input type="hidden" name="current_page" value="{{ current_page }}">
+    <input type="hidden" name="search_query" value="{{ search_query }}">
+{% endif %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for produto in produtos %}
+            {# Exibir produto se tiver imagem ou se o usuário for dono #}
+            {% if produto.caminho_imagem or (current_user.is_authenticated and current_user.role == 'dono') %}
+            <div class="col">
+                <div class="card product-card">
+                    {# Exibir a imagem APENAS se existir um caminho de imagem #}
+                    {% if produto.caminho_imagem %}
+                    <img src="{{ url_for('static', filename=produto.caminho_imagem) }}" 
+                         class="card-img-top product-image" 
+                         alt="{{ produto.descricao_produto }}">
+                    {% else %}
+                    {# Placeholder para produtos sem imagem #}
+                    <div class="product-image-placeholder d-flex justify-content-center align-items-center bg-light text-muted">
+                         Sem Imagem
+                    </div>
+                    {% endif %}
+                    <div class="card-body">
+                        <p class="card-text">{{ produto.descricao_produto }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">Código: {{ produto.codigo_produto }}</small>
+                            {% if current_user.is_authenticated and current_user.role == 'dono' %}
+                                <div class="input-group input-group-sm" style="width: 100px;">
+                                    <span class="input-group-text">R$</span>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           name="preco_csl_{{ produto.codigo_produto }}" 
+                                           value="{{ produto.Preco_CSL | default(0) }}" 
+                                           step="0.01" min="0">
+                                </div>
+                            {% else %}
+                                <h5 class="mb-0">R$ {{ produto.Preco_CSL | default('N/A') }}</h5>
+                            {% endif %}
+                        </div>
+                        {% if current_user.is_authenticated and current_user.role == 'dono' %}
+                        <div class="form-check">
+                            <input class="form-check-input" 
+                                   type="checkbox" 
+                                   name="produto_{{ produto.codigo_produto }}" 
+                                   id="produto_{{ produto.codigo_produto }}"
+                                   {% if produto.ativo_catalogo %}checked{% endif %}>
+                            <label class="form-check-label" for="produto_{{ produto.codigo_produto }}">
+                                Manter no Catálogo de Venda
+                            </label>
+                            <!-- Campo oculto para listar códigos de produtos visíveis na página -->
+                            <input type="hidden" name="produto_codigo[]" value="{{ produto.codigo_produto }}">
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    {% if current_user.is_authenticated and current_user.role == 'dono' %}
+    <div class="mt-4 text-center">
+        <button type="submit" class="btn btn-primary btn-lg">Salvar Decisões</button>
+    </div>
+    {% endif %}
+
+    <!-- Controles de Paginação -->
+    <nav aria-label="Navegação de Produtos" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('galeria', page=1, search=search_query) }}" aria-label="Primeira">
+                    <span aria-hidden="true">&laquo;&laquo;</span>
+                </a>
+            </li>
+            <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('galeria', page=current_page - 1, search=search_query) }}" aria-label="Anterior">
+                    <span aria-hidden="true">&laquo;</span>
+                </a>
+            </li>
+
+            {% set start_page = (current_page - 2) if (current_page - 2) > 0 else 1 %}
+            {% set end_page = (current_page + 2) if (current_page + 2) <= total_pages else total_pages %}
+
+            {% for page_num in range(start_page, end_page + 1) %}
+                <li class="page-item {% if page_num == current_page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('galeria', page=page_num, search=search_query) }}">{{ page_num }}</a>
+                </li>
+            {% endfor %}
+
+            <li class="page-item {% if current_page == total_pages or total_pages == 0 %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('galeria', page=current_page + 1, search=search_query) }}" aria-label="Próxima">
+                    <span aria-hidden="true">&raquo;</span>
+                </a>
+            </li>
+            <li class="page-item {% if current_page == total_pages or total_pages == 0 %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('galeria', page=total_pages, search=search_query) }}" aria-label="Última">
+                    <span aria-hidden="true">&raquo;&raquo;</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+{% if current_user.is_authenticated and current_user.role == 'dono' %}
+</form>
+{% endif %}
+{% endblock %} 

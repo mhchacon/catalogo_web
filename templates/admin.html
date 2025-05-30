@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Administração - Catálogo de Produtos{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Administração</h2>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Importar Produtos</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('upload_produtos') }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="produtos_file" class="form-label">Arquivo Excel (.xlsx)</label>
+                        <input type="file" class="form-control" id="produtos_file" name="file" accept=".xlsx" required>
+                        <div class="form-text">
+                            O arquivo deve conter as colunas: codigo_produto e descricao_produto, status (TRUE/FALSE), Preco CSL e outras colunas desejadas.
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Importar Produtos</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Upload de Imagem</h5>
+            </div>
+            <div class="card-body">
+                <form id="upload_imagem_form" method="POST" action="{{ url_for('upload_imagem') }}" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="search_produto_descricao" class="form-label">Buscar Produto por Descrição</label>
+                        <input type="text" class="form-control" id="search_produto_descricao" placeholder="Digite a descrição do produto">
+                        <input type="hidden" id="codigo_produto_upload" name="codigo_produto_upload">
+                        <div id="search_results" class="list-group mt-2" style="position: absolute; z-index: 1000; width: 95%;"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="imagem_file" class="form-label">Imagem do Produto</label>
+                        <input type="file" class="form-control" id="imagem_file" name="file" accept="image/*" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Enviar Imagem</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Seção de busca da lista geral -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Buscar Produtos na Lista Geral</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('admin') }}">
+            <div class="row g-3 align-items-center">
+                <div class="col-auto">
+                    <label for="search_input_listagem" class="col-form-label">Descrição:</label>
+                </div>
+                <div class="col-md-6">
+                    <input type="text" id="search_input_listagem" name="search" class="form-control" value="{{ search_query if search_query else '' }}">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn btn-secondary">Buscar</button>
+                    {% if search_query %}
+                    <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary">Limpar Busca</a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Lista de Produtos</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Descrição</th>
+                        <th>Status</th>
+                        <th>Imagem</th>
+                        <th>Preço CSL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for produto in produtos %}
+                    <tr>
+                        <td>{{ produto.codigo_produto }}</td>
+                        <td>{{ produto.descricao_produto }}</td>
+                        <td>
+                            {% if produto.ativo_catalogo %}
+                            <span class="badge bg-success">Ativo</span>
+                            {% else %}
+                            <span class="badge bg-danger">Inativo</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if produto.caminho_imagem %}
+                            <span class="badge bg-success">Sim</span>
+                            {% else %}
+                            <span class="badge bg-warning">Não</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ produto.Preco_CSL | default('N/A') }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5">Nenhum produto encontrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Controles de Paginação -->
+        <nav aria-label="Navegação de Produtos">
+            <ul class="pagination justify-content-center">
+                <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin', page=1, search=search_query) }}" aria-label="Primeira">
+                        <span aria-hidden="true">&laquo;&laquo;</span>
+                    </a>
+                </li>
+                <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin', page=current_page - 1, search=search_query) }}" aria-label="Anterior">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+
+                {% set start_page = (current_page - 2) if (current_page - 2) > 0 else 1 %}
+                {% set end_page = (current_page + 2) if (current_page + 2) <= total_pages else total_pages %}
+
+                {% for page_num in range(start_page, end_page + 1) %}
+                    <li class="page-item {% if page_num == current_page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('admin', page=page_num, search=search_query) }}">{{ page_num }}</a>
+                    </li>
+                {% endfor %}
+
+                <li class="page-item {% if current_page == total_pages or total_pages == 0 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin', page=current_page + 1, search=search_query) }}" aria-label="Próxima">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+                <li class="page-item {% if current_page == total_pages or total_pages == 0 %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('admin', page=total_pages, search=search_query) }}" aria-label="Última">
+                        <span aria-hidden="true">&raquo;&raquo;</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+    </div>
+</div>
+
+<script>
+    document.getElementById('search_produto_descricao').addEventListener('input', function() {
+        const searchTerm = this.value;
+        const searchResultsDiv = document.getElementById('search_results');
+
+        if (searchTerm.length < 3) {
+            searchResultsDiv.innerHTML = '';
+            document.getElementById('codigo_produto_upload').value = ''; // Limpa o código do produto selecionado
+            return;
+        }
+
+        fetch(`/search_products_for_upload?description=${searchTerm}`)
+            .then(response => response.json())
+            .then(data => {
+                searchResultsDiv.innerHTML = '';
+                if (data.length > 0) {
+                    data.forEach(produto => {
+                        const item = document.createElement('a');
+                        item.href = "#";
+                        item.classList.add('list-group-item', 'list-group-item-action');
+                        item.textContent = `${produto.codigo_produto} - ${produto.descricao_produto} ${produto.has_image ? '(Com Imagem)' : ''}`;
+                        item.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            document.getElementById('search_produto_descricao').value = `${produto.codigo_produto} - ${produto.descricao_produto}`;
+                            document.getElementById('codigo_produto_upload').value = produto.codigo_produto;
+                            searchResultsDiv.innerHTML = ''; // Limpa os resultados após selecionar
+                        });
+                        searchResultsDiv.appendChild(item);
+                    });
+                } else {
+                    searchResultsDiv.innerHTML = '<div class="list-group-item">Nenhum produto encontrado.</div>';
+                    document.getElementById('codigo_produto_upload').value = ''; // Limpa o código do produto selecionado
+                }
+            })
+            .catch(error => {
+                console.error('Erro na busca:', error);
+                searchResultsDiv.innerHTML = '<div class="list-group-item text-danger">Erro ao buscar produtos.</div>';
+                 document.getElementById('codigo_produto_upload').value = ''; // Limpa o código do produto selecionado
+            });
+    });
+
+    // Opcional: Limpar resultados se clicar fora da área de busca
+    document.addEventListener('click', function(event) {
+        const searchResultsDiv = document.getElementById('search_results');
+        const searchInput = document.getElementById('search_produto_descricao');
+        if (!searchResultsDiv.contains(event.target) && event.target !== searchInput) {
+            searchResultsDiv.innerHTML = '';
+        }
+    });
+
+     // Validar formulário de upload de imagem antes de enviar
+    document.getElementById('upload_imagem_form').addEventListener('submit', function(event) {
+        const codigoProdutoUpload = document.getElementById('codigo_produto_upload').value;
+        if (!codigoProdutoUpload) {
+            alert('Por favor, selecione um produto da lista de busca antes de enviar a imagem.');
+            event.preventDefault(); // Impede o envio do formulário
+        }
+    });
+
+
+</script>
+
+{% endblock %} 
