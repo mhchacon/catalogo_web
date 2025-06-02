@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhes do Produto{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-md-5 d-flex align-items-center justify-content-center">
+            {% if produto.caminho_imagem %}
+                <img src="{{ url_for('static', filename=produto.caminho_imagem) }}" class="img-fluid rounded shadow" alt="{{ produto.descricao_produto }}" style="max-height: 400px;">
+            {% else %}
+                <div class="d-flex align-items-center justify-content-center bg-light text-muted border rounded" style="width: 100%; height: 400px; font-size: 1.5rem;">Sem Imagem</div>
+            {% endif %}
+        </div>
+        <div class="col-md-7">
+            <h3 class="mb-3">{{ produto.descricao_produto }}</h3>
+            <table class="table table-bordered align-middle bg-white">
+                <tbody>
+                    <tr>
+                        <th scope="row">Código</th>
+                        <td>{{ produto.codigo_produto }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Altura</th>
+                        <td>{{ produto.Altura|default('N/A') }} m</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Comprimento</th>
+                        <td>{{ produto.Comprimento|default('N/A') }} m</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Largura</th>
+                        <td>{{ produto.Largura|default('N/A') }} m</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Cores Disponíveis</th>
+                        <td>
+                            {% for cor in cores_disponiveis %}
+                                <span class="badge bg-secondary me-1">{{ cor }}</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Ativo no Catálogo?</th>
+                        <td>
+                            {% if produto.ativo_catalogo %}
+                                <span class="badge bg-success">Sim</span>
+                            {% else %}
+                                <span class="badge bg-danger">Não</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            <h5 class="mt-4">Preços por Cor e Tabela</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered align-middle bg-white" style="font-size:0.95em;">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="min-width: 80px;">Cor</th>
+                            <th style="min-width: 90px;">Código</th>
+                            {% set nomes_tabelas = [
+                                'Varejo 5k', 'Varejo 25k', 'Varejo 50k', 'Atacado', 'Gold', 'Amazon/Mac', 'Acre/Rond.'
+                            ] %}
+                            {% for nome in nomes_tabelas %}
+                                <th style="min-width: 70px; white-space: normal;">{{ nome }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for variante in variantes %}
+                        <tr style="height: 44px;">
+                            <td><span class="badge bg-secondary" style="font-size:0.95em; padding:6px 10px;">{{ variante.Desc_Cor }}</span></td>
+                            <td><span class="fw-bold" style="font-size:0.95em;">{{ variante.codigo_produto }}</span></td>
+                            <td class="text-center fw-bold" style="font-size:1.05em; padding:8px 6px; white-space:nowrap;">R$ {{ variante['TABELA_VAREJO_5_000']|default(0)|format_price }}</td>
+                            <td class="text-center fw-bold" style="font-size:1.05em; padding:8px 6px; white-space:nowrap;">R$ {{ variante['TABELA_VAREJO_25_000']|default(0)|format_price }}</td>
+                            <td class="text-center fw-bold" style="font-size:1.05em; padding:8px 6px; white-space:nowrap;">R$ {{ variante['TABELA_VAREJO_50_000']|default(0)|format_price }}</td>
+                            <td class="text-center fw-bold" style="font-size:1.05em; padding:8px 6px; white-space:nowrap;">R$ {{ variante['TABELA_ATACADO']|default(0)|format_price }}</td>
+                            <td class="text-center fw-bold" style="font-size:1.05em; padding:8px 6px; white-space:nowrap;">R$ {{ variante['TABELA_GOLD_PARCEIRO']|default(0)|format_price }}</td>
+                            <td class="text-center fw-bold" style="font-size:1.05em; padding:8px 6px; white-space:nowrap;">R$ {{ variante['TABELA_ATACADO_AMAZONIA_E_MACAPA']|default(0)|format_price }}</td>
+                            <td class="text-center fw-bold" style="font-size:1.05em; padding:8px 6px; white-space:nowrap;">R$ {{ variante['TABELA_ACRE_E_RONDONIA']|default(0)|format_price }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

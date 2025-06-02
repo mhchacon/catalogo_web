@@ -201,29 +201,39 @@ def galeria():
     produtos_agrupados = []
     try:
         produtos_agrupados = list(produtos_collection.aggregate(pipeline))
-        
+        print("DEBUG produtos_agrupados:", produtos_agrupados)
         # Processar os resultados para ter uma estrutura mais amigável no template
         produtos_para_template = []
         for grupo in produtos_agrupados:
             main_prod = grupo['main_product']
             variants_list = []
             for variant in grupo['variants']:
+                tabelas_preco = [
+                    'TABELA_VAREJO_5_000',
+                    'TABELA_VAREJO_25_000',
+                    'TABELA_VAREJO_50_000',
+                    'TABELA_ATACADO',
+                    'TABELA_GOLD_PARCEIRO',
+                    'TABELA_ATACADO_AMAZONIA_E_MACAPA',
+                    'TABELA_ACRE_E_RONDONIA'
+                ]
+                precos = {k: variant.get(k, 0) for k in tabelas_preco}
                 variant_data = {
                     'codigo_produto': variant.get('codigo_produto'),
                     'Desc_Cor': variant.get('Desc_Cor', 'Não Informado'),
-                    # Coletar todos os campos que não são os principais
-                    'precos': {k: v for k, v in variant.items() if k not in ['_id', 'codigo_produto', 'descricao_produto', 'caminho_imagem', 'ativo_catalogo', 'codigo_base', 'Desc_Cor']}
+                    'precos': precos
                 }
                 variants_list.append(variant_data)
-                
             produtos_para_template.append({
                 'codigo_base': grupo['codigo_base'],
                 'descricao_produto': main_prod.get('descricao_produto'),
                 'caminho_imagem': main_prod.get('caminho_imagem'),
-                'ativo_catalogo': main_prod.get('ativo_catalogo', False), # Default False se não existir
+                'ativo_catalogo': main_prod.get('ativo_catalogo', False),
                 'variants': variants_list
             })
-            
+        print("DEBUG produtos_para_template:", produtos_para_template)
+        print("DEBUG total_pages:", total_pages)
+        print("DEBUG current_page:", page)
         return render_template('galeria.html', 
                                produtos=produtos_para_template, 
                                total_pages=total_pages, 
@@ -231,8 +241,10 @@ def galeria():
                                search_query=search_query,
                                tabela_preco_selecionada=tabela_preco_selecionada)
     except Exception as e:
+        print("ERRO GRAVE NA GALERIA:", e)
+        import traceback
+        traceback.print_exc()
         flash(f'Erro ao carregar produtos na galeria: {str(e)}')
-        print(f"Erro na rota /galeria: {str(e)}")
         return render_template('galeria.html', produtos=[], total_pages=0, current_page=1, search_query=search_query, tabela_preco_selecionada=tabela_preco_selecionada)
 
 @app.route('/admin')
@@ -270,7 +282,9 @@ def admin():
 
         skip = (page - 1) * per_page
         produtos = list(produtos_collection.find(query).skip(skip).limit(per_page))
-        
+
+        print("DEBUG: Resultado da consulta /admin:", list(produtos_collection.find(query).skip(skip).limit(per_page)))
+
         return render_template('admin.html', 
                                produtos=produtos, 
                                total_pages=total_pages, 
@@ -473,27 +487,37 @@ def salvar_decisoes():
         # Obter todos os campos do formulário
         form_data = request.form.to_dict()
         
-        # Processar cada produto
-        for key, value in form_data.items():
-            if key.startswith('produto_') and key != 'produto_codigo[]':
-                codigo_produto = key.replace('produto_', '')
-                ativo_catalogo = value == 'on'
-                
-                # Atualizar o status ativo_catalogo
+        # Atualizar ativo_catalogo para todos os produtos exibidos
+        todos_codigos = request.form.getlist('todos_codigos_produto[]')
+        for codigo_produto in todos_codigos:
+            ativo_catalogo = f'produto_{codigo_produto}' in form_data
+            # Buscar o codigo_base dessa variante
+            doc = produtos_collection.find_one({'codigo_produto': codigo_produto})
+            if doc and 'codigo_base' in doc:
+                codigo_base = doc['codigo_base']
+                # Atualizar todas as variantes do grupo
+                produtos_collection.update_many(
+                    {'codigo_base': codigo_base},
+                    {'$set': {'ativo_catalogo': ativo_catalogo}}
+                )
+            else:
+                # Fallback: atualiza só o produto se não tiver codigo_base
                 produtos_collection.update_one(
                     {'codigo_produto': codigo_produto},
                     {'$set': {'ativo_catalogo': ativo_catalogo}}
                 )
-            
-            # Processar alterações de preço
-            elif key.startswith('preco_'):
+        
+        # Processar alterações de preço
+        for key, value in form_data.items():
+            if key.startswith('preco_'):
                 # Formato esperado: preco_TABELA_CODIGO
                 parts = key.split('_')
                 if len(parts) >= 3:
                     tabela = '_'.join(parts[1:-1])  # Junta todas as partes do meio para formar o nome da tabela
                     codigo_produto = parts[-1]
                     try:
-                        valor = float(value)
+                        valor_str = str(value).replace('.', '').replace(',', '.')
+                        valor = float(valor_str)
                         # Atualizar o preço na tabela específica
                         produtos_collection.update_one(
                             {'codigo_produto': codigo_produto},
@@ -563,6 +587,106 @@ def exportar_protheus():
         flash(f'Erro ao exportar dados: {str(e)}')
         print(f"Erro na rota /exportar_protheus: {str(e)}")
         return redirect(url_for('admin'))
+
+@app.route('/produto/<codigo_base>')
+def produto_detalhe(codigo_base):
+    if produtos_collection is None:
+        flash('Erro: Conexão com o MongoDB não estabelecida.')
+        return redirect(url_for('galeria'))
+
+    # Buscar todas as variantes desse codigo_base
+    variantes = list(produtos_collection.find({
+        '$or': [
+            {'codigo_base': codigo_base},
+            # fallback para produtos antigos sem campo codigo_base
+            {'codigo_produto': {'$regex': f'^{codigo_base}'}},
+        ]
+    }))
+    if not variantes:
+        flash('Produto não encontrado.')
+        return redirect(url_for('galeria'))
+
+    # Pega o produto principal (primeira variante)
+    produto = variantes[0]
+
+    # Listar todas as cores disponíveis
+    cores_disponiveis = [v.get('Desc_Cor', 'N/A') for v in variantes]
+
+    # Listar todos os preços de todas as tabelas para cada variante
+    tabelas_preco = [
+        'TABELA_VAREJO_5_000',
+        'TABELA_VAREJO_25_000',
+        'TABELA_VAREJO_50_000',
+        'TABELA_ATACADO',
+        'TABELA_GOLD_PARCEIRO',
+        'TABELA_ATACADO_AMAZONIA_E_MACAPA',
+        'TABELA_ACRE_E_RONDONIA'
+    ]
+
+    return render_template(
+        'produto.html',
+        produto=produto,
+        variantes=variantes,
+        cores_disponiveis=cores_disponiveis,
+        tabelas_preco=tabelas_preco
+    )
+
+@app.template_filter('format_price')
+def format_price(value):
+    try:
+        return '{:,.2f}'.format(float(str(value).replace(',', '.'))).replace(',', 'X').replace('.', ',').replace('X', '.')
+    except Exception:
+        return '0,00'
+
+@app.route('/editar_precos/<codigo_base>', methods=['GET', 'POST'])
+@login_required
+def editar_precos(codigo_base):
+    if current_user.role != 'dono':
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('galeria'))
+
+    if request.method == 'POST':
+        # Salvar os preços editados
+        tabelas_preco = [
+            'TABELA_VAREJO_5_000',
+            'TABELA_VAREJO_25_000',
+            'TABELA_VAREJO_50_000',
+            'TABELA_ATACADO',
+            'TABELA_GOLD_PARCEIRO',
+            'TABELA_ATACADO_AMAZONIA_E_MACAPA',
+            'TABELA_ACRE_E_RONDONIA'
+        ]
+        variantes = list(produtos_collection.find({'codigo_base': codigo_base}))
+        for variante in variantes:
+            codigo_produto = variante['codigo_produto']
+            updates = {}
+            for tabela in tabelas_preco:
+                key = f'{tabela}_{codigo_produto}'
+                valor = request.form.get(key)
+                if valor is not None:
+                    try:
+                        valor_str = str(valor).replace('.', '').replace(',', '.')
+                        updates[tabela] = float(valor_str)
+                    except Exception:
+                        continue
+            if updates:
+                produtos_collection.update_one({'codigo_produto': codigo_produto}, {'$set': updates})
+        flash('Preços atualizados com sucesso!', 'success')
+        return redirect(url_for('galeria'))
+
+    # GET: mostrar a tabela
+    variantes = list(produtos_collection.find({'codigo_base': codigo_base}))
+    descricao_produto = variantes[0]['descricao_produto'] if variantes else ''
+    tabelas_preco = [
+        'TABELA_VAREJO_5_000',
+        'TABELA_VAREJO_25_000',
+        'TABELA_VAREJO_50_000',
+        'TABELA_ATACADO',
+        'TABELA_GOLD_PARCEIRO',
+        'TABELA_ATACADO_AMAZONIA_E_MACAPA',
+        'TABELA_ACRE_E_RONDONIA'
+    ]
+    return render_template('editar_precos.html', variantes=variantes, tabelas_preco=tabelas_preco, codigo_base=codigo_base, descricao_produto=descricao_produto)
 
 if __name__ == '__main__':
     app.run(debug=True) 
