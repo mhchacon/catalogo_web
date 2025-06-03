@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, send_from_directory, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, send_file, send_from_directory, jsonify, make_response
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
@@ -10,6 +10,11 @@ import openpyxl
 from dotenv import load_dotenv
 import math
 import re
+import tempfile
+try:
+    from weasyprint import HTML
+except ImportError:
+    HTML = None
 
 # Carrega variáveis de ambiente
 load_dotenv()
@@ -687,6 +692,100 @@ def editar_precos(codigo_base):
         'TABELA_ACRE_E_RONDONIA'
     ]
     return render_template('editar_precos.html', variantes=variantes, tabelas_preco=tabelas_preco, codigo_base=codigo_base, descricao_produto=descricao_produto)
+
+@app.route('/exportar_catalogo_pdf', methods=['GET', 'POST'])
+@login_required
+def exportar_catalogo_pdf():
+    if current_user.role not in ['admin', 'dono']:
+        flash('Acesso não autorizado.', 'danger')
+        return redirect(url_for('galeria'))
+
+    tabelas_preco = [
+        ('TABELA_VAREJO_5_000', 'Varejo 5k'),
+        ('TABELA_VAREJO_25_000', 'Varejo 25k'),
+        ('TABELA_VAREJO_50_000', 'Varejo 50k'),
+        ('TABELA_ATACADO', 'Atacado'),
+        ('TABELA_GOLD_PARCEIRO', 'Gold Parceiro'),
+        ('TABELA_ATACADO_AMAZONIA_E_MACAPA', 'Atacado Amaz/Mac'),
+        ('TABELA_ACRE_E_RONDONIA', 'Acre/Rondônia')
+    ]
+
+    if request.method == 'POST':
+        tabela_preco = request.form.get('tabela_preco')
+        apenas_com_foto = request.form.get('apenas_com_foto') == 'on'
+
+        # 1. Buscar TODAS as variantes que são 'ativo_catalogo: true'
+        filtro_inicial = {'ativo_catalogo': True}
+        todas_variantes_ativas = list(produtos_collection.find(filtro_inicial))
+
+        # 2. Agrupar estas variantes por codigo_base
+        produtos_por_grupo_temp = {}
+        for variante_ativa in todas_variantes_ativas:
+            codigo_base = variante_ativa.get('codigo_base')
+            if not codigo_base: # Pular variantes sem codigo_base
+                continue
+            if codigo_base not in produtos_por_grupo_temp:
+                produtos_por_grupo_temp[codigo_base] = []
+            produtos_por_grupo_temp[codigo_base].append(variante_ativa)
+
+        # 3. Preparar uma lista de grupos, determinando o produto principal para cada um
+        #    Esta lista será filtrada a seguir se 'apenas_com_foto' estiver ativo.
+        grupos_pre_filtro = []
+        for codigo_base_key, variantes_do_grupo_atual in produtos_por_grupo_temp.items():
+            if not variantes_do_grupo_atual:
+                continue
+
+            # Determinar o produto principal (preferencialmente branco) para imagem/descrição
+            produto_principal_do_grupo = None
+            for v_principal_check in variantes_do_grupo_atual:
+                if v_principal_check.get('codigo_produto','').endswith('1'):
+                    produto_principal_do_grupo = v_principal_check
+                    break
+            if not produto_principal_do_grupo: # Fallback se não houver branco
+                # Ordenar para garantir uma seleção consistente (ex: pelo código do produto)
+                produto_principal_do_grupo = sorted(variantes_do_grupo_atual, key=lambda v_sort: v_sort.get('codigo_produto', ''))[0]
+            
+            # Ordenar as variantes que serão passadas para o template (ex: por código do produto)
+            variantes_ordenadas_para_template = sorted(variantes_do_grupo_atual, key=lambda v_sort: v_sort.get('codigo_produto', ''))
+
+            grupos_pre_filtro.append({
+                'descricao_produto': produto_principal_do_grupo.get('descricao_produto'),
+                'caminho_imagem': produto_principal_do_grupo.get('caminho_imagem'),
+                'codigo_base': codigo_base_key,
+                'variants': variantes_ordenadas_para_template, # Todas as variantes ativas do grupo
+                '_tem_imagem_principal': True if produto_principal_do_grupo.get('caminho_imagem') else False # Flag para filtro
+            })
+
+        # 4. Filtrar os GRUPOS se 'apenas_com_foto' estiver marcado
+        produtos_agrupados = []
+        if apenas_com_foto:
+            for grupo_candidato in grupos_pre_filtro:
+                if grupo_candidato['_tem_imagem_principal']:
+                    del grupo_candidato['_tem_imagem_principal'] # Remover flag auxiliar
+                    produtos_agrupados.append(grupo_candidato)
+        else: # Se 'apenas_com_foto' não estiver marcado, incluir todos os grupos
+            for grupo_candidato in grupos_pre_filtro:
+                del grupo_candidato['_tem_imagem_principal'] # Remover flag auxiliar
+                produtos_agrupados.append(grupo_candidato)
+        
+        # Agora 'produtos_agrupados' contém os grupos corretos com todas as suas variantes ativas.
+        # Ordenar os grupos finais (opcional, ex: pela descrição do produto principal)
+        produtos_agrupados.sort(key=lambda g: g.get('descricao_produto',''))
+
+        html = render_template('catalogo_pdf.html', produtos=produtos_agrupados, tabela_preco=tabela_preco, tabelas_preco=tabelas_preco)
+        if HTML is None:
+            flash('WeasyPrint não está instalado no servidor.', 'danger')
+            return redirect(url_for('exportar_catalogo_pdf'))
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmpfile:
+            HTML(string=html, base_url=request.base_url).write_pdf(tmpfile.name)
+            tmpfile.seek(0)
+            pdf_data = tmpfile.read()
+        response = make_response(pdf_data)
+        response.headers['Content-Type'] = 'application/pdf'
+        response.headers['Content-Disposition'] = 'attachment; filename=catalogo_luzarte.pdf'
+        return response
+
+    return render_template('exportar_catalogo_pdf.html', tabelas_preco=tabelas_preco)
 
 if __name__ == '__main__':
     app.run(debug=True) 

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Exportar Catálogo em PDF{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4">Exportar Catálogo em PDF</h2>
+    <form method="POST">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="tabela_preco" class="form-label">Tabela de Preço</label>
+                <select class="form-select" id="tabela_preco" name="tabela_preco" required>
+                    <option value="" disabled selected>Selecione a tabela</option>
+                    {% for tabela, label in tabelas_preco %}
+                        <option value="{{ tabela }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="apenas_com_foto" name="apenas_com_foto">
+                    <label class="form-check-label" for="apenas_com_foto">
+                        Apenas produtos com foto
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="mt-4 text-center">
+            <button type="submit" class="btn btn-primary btn-lg">Gerar PDF</button>
+        </div>
+    </form>
+</div>
+{% endblock %} 
