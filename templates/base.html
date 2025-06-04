@@ -74,7 +74,7 @@
                             <a class="nav-link" href="{{ url_for('exportar_protheus') }}">Exportar para Protheus</a>
                         </li>
                         {% endif %}
-                        {% if current_user.role == 'dono' %}
+                        {% if current_user.role == 'dono' or current_user.role == 'admin' %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('exportar_catalogo_pdf') }}">Exportar PDF</a>
                         </li>

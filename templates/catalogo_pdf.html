@@ -9,131 +9,218 @@
             background: #fff; 
             color: #222;
             margin: 0;
-            padding: 20px;
+            font-size: 8.5pt; /* Podemos tentar aumentar um pouco a fonte base com o modo paisagem */
         }
         .catalogo-header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 15px; /* Aumentar um pouco a margem inferior */
+            padding-bottom: 10px; /* Adicionar padding para linha divisória */
+            border-bottom: 1px solid #ccc; /* Linha divisória */
+            display: flex; /* Usar flexbox para alinhar */
+            flex-wrap: wrap; /* Permitir quebra de linha se necessário */
+            justify-content: space-between; /* Distribuir espaço */
+            align-items: center; /* Alinhar itens verticalmente */
+        }
+        .catalogo-header-principal {
+            text-align: left;
         }
         .catalogo-header h1 {
-            font-size: 2.8em;
-            letter-spacing: 2px;
-            margin-bottom: 0;
+            font-size: 17pt; 
+            letter-spacing: 0.5px; 
+            margin-bottom: 1px;
+            margin-top: 0;
         }
         .catalogo-header h2 {
-            font-size: 1.2em;
+            font-size: 9.5pt; 
             font-weight: 400;
-            margin-top: 0.2em;
+            margin-top: 0;
             color: #555;
+            margin-bottom: 0;
         }
+        .catalogo-header-info {
+            text-align: right;
+            font-size: 7.5pt; /* Fonte menor para informações adicionais */
+            color: #444;
+        }
+        .catalogo-header-info p {
+            margin: 2px 0;
+        }
+
         .produtos-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            margin-bottom: 20px;
-        }
-        .produto-bloco {
-            border: 1px solid #e0e0e0;
-            border-radius: 10px;
-            padding: 15px;
-            background: #fafbfc;
-            box-shadow: 0 2px 8px #eee;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-            box-sizing: border-box;
-            overflow: visible;
-            min-height: 280px;
-        }
-        .produto-img {
-            width: 100%;
-            height: 150px;
-            object-fit: contain;
-            border-radius: 8px;
-            background: #fff;
-            border: 1px solid #ddd;
-            margin-bottom: 15px;
-        }
-        .produto-info {
-            flex: 1;
-            overflow: visible;
-            min-height: 100px;
-        }
-        .produto-desc {
-            font-size: 1em;
-            font-weight: bold;
+            grid-template-columns: repeat(3, 1fr); /* Alterado para 3 colunas */
+            gap: 8px; /* Reduzido gap */
             margin-bottom: 10px;
         }
-        .preco-tabela {
-            border-collapse: collapse;
+
+        .produto-bloco { 
+            border: 1px solid #cccccc; 
+            border-radius: 4px; /* Reduzido border-radius */
+            padding: 6px; /* Reduzido padding */
+            background: #fdfdfd;
+            display: flex; 
+            flex-direction: row; 
+            box-sizing: border-box;
+            page-break-inside: avoid;
+            align-items: stretch; 
+        }
+
+        .produto-lado-esquerdo {
+            display: flex;
+            flex-direction: column;
+            align-items: center; 
+            padding-right: 5px; /* Reduzido padding */
+            width: 40%; /* Ajustar conforme necessário, talvez 50% */
+            box-sizing: border-box;
+            overflow: hidden; 
+        }
+
+        .produto-lado-direito {
+            display: flex;
+            flex-direction: column;
+            width: 60%; /* Ajustar conforme necessário, talvez 50% */
+            box-sizing: border-box;
+            justify-content: flex-start; 
+        }
+
+        .produto-imagem { 
             width: 100%;
-            margin-top: 8px;
-            font-size: 0.9em;
-            table-layout: auto;
-            overflow: visible;
+            max-width: 70px; /* Drasticamente reduzido */
+            height: 70px; /* Drasticamente reduzido */
+            object-fit: contain;
+            border-radius: 2px; 
+            background: #fff;
+            border: 1px solid #ddd;
+            margin-bottom: 4px; /* Reduzido margin */
         }
-        .preco-tabela th, .preco-tabela td {
-            border: 1px solid #bbb;
-            padding: 8px 10px;
+        .produto-imagem-placeholder { 
+            width: 100%;
+            max-width: 70px; /* Drasticamente reduzido */
+            height: 70px; /* Drasticamente reduzido */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #bbb;
+            border: 1px solid #ddd;
+            border-radius: 2px;
+            background: #f8f8f8; 
+            font-size: 0.7em; /* Reduzido font-size */
+            margin-bottom: 4px; /* Reduzido margin */
+        }
+
+        .produto-descricao { 
+            font-size: 6pt; /* Drasticamente reduzido */
+            font-weight: bold;
+            margin-bottom: 0; 
+            width: 100%;
+            line-height: 1.1; /* Reduzido line-height */
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            text-align: center; 
+            max-height: 35px; /* Reduzido max-height (aprox. 3-4 linhas) */
+            overflow: hidden; 
+        }
+        
+        .tabela-precos-bloco { 
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 5.5pt; /* Drasticamente reduzido */
+            margin-top: 0; 
+        }
+
+        .tabela-precos-bloco th, .tabela-precos-bloco td {
+            border: 1px solid #d0d0d0; 
+            padding: 1px 2px; /* Drasticamente reduzido */
+            text-align: left;
+            vertical-align: middle;
+            line-height: 1.0; /* Drasticamente reduzido */
+            word-break: break-word; 
+        }
+
+        .tabela-precos-bloco th {
+            background: #f5f5f5; 
+            font-weight: bold;
             text-align: center;
-            word-break: break-word;
-            font-size: 1em;
+            font-size: 5pt; /* Drasticamente reduzido */
         }
-        .preco-tabela th {
-            background: #e9ecef;
-            font-weight: bold;
+
+        .tabela-precos-bloco th:first-child, 
+        .tabela-precos-bloco td:first-child { 
+            width: 60%; 
+            text-align: left;
         }
-        .cor-label {
-            font-weight: bold;
-            padding: 2px 8px;
-            border-radius: 4px;
-            margin-right: 4px;
-            font-size: 0.9em;
+
+        .tabela-precos-bloco th:last-child, 
+        .tabela-precos-bloco td:last-child { 
+            width: 40%; 
+            text-align: right; 
+            font-weight: bold; 
         }
-        .cor-branca { 
-            color: #222; 
-            background: #fffbe7; 
-            border: 1px solid #e0e0e0; 
+
+        .cor-label-bloco { 
+            font-weight: normal;
+            padding: 1px; /* Drasticamente reduzido */
+            border-radius: 1px; /* Reduzido */
+            display: inline-block;
+            white-space: nowrap;
+            border: 1px solid transparent;
+            font-size: 5pt; /* Drasticamente reduzido */
         }
-        .cor-preta { 
-            color: #fff; 
-            background: #222; 
+        .cor-branca-bloco {
+            color: #222;
+            background: #fff8e1;
+            border-color: #e0e0e0;
         }
-        .cor-colorida { 
-            color: #fff; 
-            background: #2a8cce; 
+        .cor-preta-bloco {
+            color: #fff;
+            background: #333;
+            border-color: #333;
         }
+        .cor-colorida-bloco {
+            color: #fff;
+            background: #2a8cce;
+            border-color: #2a8cce;
+        }
+
         @page {
-            size: A4;
-            margin: 1cm;
+            size: A4 landscape; /* Alterado para paisagem */
+            margin: 1cm; 
         }
     </style>
 </head>
 <body>
     <div class="catalogo-header">
-        <h1>LUZARTE</h1>
-        <h2>louças sanitárias</h2>
+        <div class="catalogo-header-principal">
+            <h1>LUZARTE</h1>
+            <h2>louças sanitárias</h2>
+        </div>
+        <div class="catalogo-header-info">
+            <p><strong>Tabela de Preço:</strong> {{ tabela_preco }}</p>
+            <p>PAGAMENTO ANTECIPADO -3%</p>
+            <p>PRAZO PAGAMENTO 30/45/60DD</p>
+        </div>
     </div>
     <div class="produtos-grid">
     {% for produto in produtos %}
         <div class="produto-bloco">
-            {% if produto.caminho_imagem %}
-                <img src="{{ url_for('static', filename=produto.caminho_imagem) }}" class="produto-img">
-            {% else %}
-                <div class="produto-img" style="display:flex;align-items:center;justify-content:center;color:#bbb;">Sem Imagem</div>
-            {% endif %}
-            <div class="produto-info">
-                <div class="produto-desc">{{ produto.descricao_produto }}</div>
-
-                <div style="margin-top: 10px; overflow: visible; min-height: 50px;">
-                    <table class="preco-tabela" style="width: 100%;">
-                        <thead>
-                            <tr>
-                                <th style="width: 35%;">Cor</th>
-                                <th style="width: 35%;">Preço</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+            <div class="produto-lado-esquerdo">
+                {% if produto.caminho_imagem %}
+                    <img src="{{ url_for('static', filename=produto.caminho_imagem) }}" class="produto-imagem" alt="{{ produto.descricao_produto }}">
+                {% else %}
+                    <div class="produto-imagem-placeholder">Sem Imagem</div>
+                {% endif %}
+                <div class="produto-descricao">{{ produto.descricao_produto }}</div>
+            </div>
+            <div class="produto-lado-direito">
+                <table class="tabela-precos-bloco">
+                    <thead>
+                        <tr>
+                            <th>Cor</th>
+                            <th>Preço</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                         {# BRANCO #}
                         {% set variantes_branco = [] %}
                         {% for variante in produto.variants %}
@@ -145,10 +232,11 @@
                         {% endfor %}
                         {% if variantes_branco|length > 0 %}
                             <tr>
-                                <td><span class="cor-label cor-branca">BRANCO</span></td>
+                                <td><span class="cor-label-bloco cor-branca-bloco">BRANCO</span></td>
                                 <td>R$ {{ variantes_branco[0][tabela_preco]|format_price }}</td>
                             </tr>
                         {% endif %}
+
                         {# PRETO #}
                         {% set variantes_preto = [] %}
                         {% for variante in produto.variants %}
@@ -160,46 +248,46 @@
                         {% endfor %}
                         {% if variantes_preto|length > 0 %}
                             <tr>
-                                <td><span class="cor-label cor-preta">PRETO</span></td>
+                                <td><span class="cor-label-bloco cor-preta-bloco">PRETO</span></td>
                                 <td>R$ {{ variantes_preto[0][tabela_preco]|format_price }}</td>
                             </tr>
                         {% endif %}
+
                         {# COLORIDAS #}
-                        {% set coloridas_precos = [] %}
+                        {% set coloridas_precos_data = [] %}
                         {% for variante in produto.variants %}
                             {% set codigo = variante.codigo_produto %}
                             {% set ultimo_digito = codigo[-1] if codigo else '' %}
                             {% set ultimos_dois_digitos = codigo[-2:] if codigo and codigo|length >= 2 else '' %}
-
                             {% if (ultimo_digito in ['2','3','5','6','7','8','9']) or (ultimos_dois_digitos == '12') or (ultimos_dois_digitos == '65') %}
                                 {% if variante[tabela_preco] is defined and variante[tabela_preco] != None %}
-                                    {% set _ = coloridas_precos.append(variante[tabela_preco]) %}
+                                    {% if variante[tabela_preco] not in coloridas_precos_data %}
+                                        {% set _ = coloridas_precos_data.append(variante[tabela_preco]) %}
+                                    {% endif %}
                                 {% endif %}
                             {% endif %}
                         {% endfor %}
-                        
-                        {% if coloridas_precos|length > 0 %}
-                            {% set precos_unicos = coloridas_precos|unique|list %}
-                            {% if precos_unicos|length == 1 %}
+                        {% set precos_unicos_coloridas = coloridas_precos_data|sort %}
+                        {% if precos_unicos_coloridas|length > 0 %}
+                            {% if precos_unicos_coloridas|length == 1 %}
                                 <tr>
-                                    <td><span class="cor-label cor-colorida">COLORIDAS</span></td>
-                                    <td>R$ {{ precos_unicos[0]|format_price }}</td>
+                                    <td><span class="cor-label-bloco cor-colorida-bloco">COLORIDAS</span></td>
+                                    <td>R$ {{ precos_unicos_coloridas[0]|format_price }}</td>
                                 </tr>
-                            {% else %} {# Mais de um preço único para coloridas #}
-                                {% for preco in precos_unicos %}
+                            {% else %}
+                                {% for preco_colorida_val in precos_unicos_coloridas %}
                                     <tr>
-                                        <td><span class="cor-label cor-colorida">COLORIDAS</span></td>
-                                        <td>R$ {{ preco|format_price }}</td>
+                                        <td><span class="cor-label-bloco cor-colorida-bloco">COLORIDAS</span></td>
+                                        <td>R$ {{ preco_colorida_val|format_price }}</td>
                                     </tr>
                                 {% endfor %}
                             {% endif %}
                         {% endif %}
-                        </tbody>
-                    </table>
-                </div>
+                    </tbody>
+                </table>
             </div>
         </div>
     {% endfor %}
     </div>
 </body>
-</html> 
+</html>
