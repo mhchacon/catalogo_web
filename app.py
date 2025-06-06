@@ -206,7 +206,6 @@ def galeria():
     produtos_agrupados = []
     try:
         produtos_agrupados = list(produtos_collection.aggregate(pipeline))
-        print("DEBUG produtos_agrupados:", produtos_agrupados)
         # Processar os resultados para ter uma estrutura mais amigável no template
         produtos_para_template = []
         for grupo in produtos_agrupados:
@@ -236,9 +235,6 @@ def galeria():
                 'ativo_catalogo': main_prod.get('ativo_catalogo', False),
                 'variants': variants_list
             })
-        print("DEBUG produtos_para_template:", produtos_para_template)
-        print("DEBUG total_pages:", total_pages)
-        print("DEBUG current_page:", page)
         return render_template('galeria.html', 
                                produtos=produtos_para_template, 
                                total_pages=total_pages, 
@@ -748,8 +744,30 @@ def exportar_catalogo_pdf():
             # Ordenar as variantes que serão passadas para o template (ex: por código do produto)
             variantes_ordenadas_para_template = sorted(variantes_do_grupo_atual, key=lambda v_sort: v_sort.get('codigo_produto', ''))
 
+            # Limpar a descrição do produto principal
+            desc_original = produto_principal_do_grupo.get('descricao_produto', '')
+            desc_temp = desc_original
+            palavras_chave_remover = ["branco", "branca", "branc"]
+
+            for palavra in palavras_chave_remover:
+                # Regex para encontrar a palavra inteira (case insensitive) e remover ela e espaços adjacentes de forma mais controlada.
+                # Remove a palavra e um espaço à direita OU um espaço à esquerda e a palavra.
+                # Isso ajuda a evitar espaços duplos de forma mais direta.
+                # Primeira tentativa: palavra seguida por um ou mais espaços
+                regex_pattern_direita = r'\b' + re.escape(palavra) + r'\b\s+'
+                desc_temp = re.sub(regex_pattern_direita, '', desc_temp, flags=re.IGNORECASE)
+                # Segunda tentativa: espaço seguido pela palavra (se não foi pego antes, ex: fim da string sem espaço depois)
+                regex_pattern_esquerda = r'\s+\b' + re.escape(palavra) + r'\b'
+                desc_temp = re.sub(regex_pattern_esquerda, '', desc_temp, flags=re.IGNORECASE)
+                # Caso a palavra esteja sozinha ou sem espaços (apenas para garantir, \b deve tratar isso)
+                if desc_temp.lower() == palavra.lower():
+                    desc_temp = ''
+            
+            # Limpeza final de espaços extras e trim.
+            desc_final = ' '.join(desc_temp.split()).strip()
+
             grupos_pre_filtro.append({
-                'descricao_produto': produto_principal_do_grupo.get('descricao_produto'),
+                'descricao_produto': desc_final, # Usar a descrição limpa
                 'caminho_imagem': produto_principal_do_grupo.get('caminho_imagem'),
                 'codigo_base': codigo_base_key,
                 'variants': variantes_ordenadas_para_template, # Todas as variantes ativas do grupo
@@ -771,6 +789,20 @@ def exportar_catalogo_pdf():
         # Agora 'produtos_agrupados' contém os grupos corretos com todas as suas variantes ativas.
         # Ordenar os grupos finais (opcional, ex: pela descrição do produto principal)
         produtos_agrupados.sort(key=lambda g: g.get('descricao_produto',''))
+
+        # Adicionar flag para tratamento especial, lendo do banco de dados
+        for grupo in produtos_agrupados:
+            # Um grupo é especial se QUALQUER uma de suas variantes tiver a flag
+            grupo['is_special_bpb_product'] = any(v.get('tratamento_cor_especial', False) for v in grupo['variants'])
+            
+            # Debug para verificar se a flag está sendo definida corretamente
+            if grupo['is_special_bpb_product']:
+                print(f"Produto especial encontrado: {grupo['descricao_produto']}")
+                for v in grupo['variants']:
+                    print(f"  - Variante: {v.get('codigo_produto')} - tratamento_cor_especial: {v.get('tratamento_cor_especial', False)}")
+
+        # DEBUG: Imprimir produtos_agrupados antes de renderizar o template do PDF
+        # print("DEBUG app.py/exportar_catalogo_pdf - produtos_agrupados para o PDF:", produtos_agrupados) # Comentado para reduzir logs
 
         html = render_template('catalogo_pdf.html', produtos=produtos_agrupados, tabela_preco=tabela_preco, tabelas_preco=tabelas_preco)
         if HTML is None:

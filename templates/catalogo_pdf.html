@@ -55,30 +55,33 @@
 
         .produto-bloco { 
             border: 1px solid #cccccc; 
-            border-radius: 4px; /* Reduzido border-radius */
-            padding: 6px; /* Reduzido padding */
+            border-radius: 4px; 
+            padding: 6px; 
             background: #fdfdfd;
             display: flex; 
             flex-direction: row; 
             box-sizing: border-box;
             page-break-inside: avoid;
             align-items: stretch; 
+            /* Definir uma altura mínima pode ajudar na consistência da grade se o conteúdo variar muito */
+            /* min-height: 120px; Exemplo, ajuste conforme necessário */
         }
 
-        .produto-lado-esquerdo {
+        .produto-lado-esquerdo { /* Apenas para imagem */
             display: flex;
             flex-direction: column;
             align-items: center; 
-            padding-right: 5px; /* Reduzido padding */
-            width: 40%; /* Ajustar conforme necessário, talvez 50% */
+            justify-content: center; /* Centralizar imagem verticalmente */
+            width: 35%; /* Reduzido, pois só tem imagem */
+            padding-right: 5px; 
             box-sizing: border-box;
             overflow: hidden; 
         }
 
-        .produto-lado-direito {
+        .produto-lado-direito { /* Para descrição e tabela */
             display: flex;
             flex-direction: column;
-            width: 60%; /* Ajustar conforme necessário, talvez 50% */
+            width: 65%; /* Aumentado */
             box-sizing: border-box;
             justify-content: flex-start; 
         }
@@ -109,15 +112,15 @@
         }
 
         .produto-descricao { 
-            font-size: 6pt; /* Drasticamente reduzido */
+            font-size: 6pt; 
             font-weight: bold;
-            margin-bottom: 0; 
+            margin-bottom: 4px; /* Adicionado espaço abaixo da descrição, antes da tabela */
             width: 100%;
-            line-height: 1.1; /* Reduzido line-height */
+            line-height: 1.1; 
             word-wrap: break-word;
             overflow-wrap: break-word;
-            text-align: center; 
-            max-height: 35px; /* Reduzido max-height (aprox. 3-4 linhas) */
+            text-align: left; /* Alterado para left, pois está acima da tabela */
+            max-height: 35px; 
             overflow: hidden; 
         }
         
@@ -182,6 +185,11 @@
             background: #2a8cce;
             border-color: #2a8cce;
         }
+        .cor-bege-bloco {
+            color: #333; /* Cor do texto para bege */
+            background: #F5F5DC; /* Cor de fundo Bege */
+            /* border-color: #e0e0dc; Opcional, para consistência */
+        }
 
         @page {
             size: A4 landscape; /* Alterado para paisagem */
@@ -210,9 +218,11 @@
                 {% else %}
                     <div class="produto-imagem-placeholder">Sem Imagem</div>
                 {% endif %}
-                <div class="produto-descricao">{{ produto.descricao_produto }}</div>
             </div>
             <div class="produto-lado-direito">
+                {# A lógica de remoção de "branco/branca" foi movida para app.py #}
+                <div class="produto-descricao">{{ produto.descricao_produto }}</div>
+                
                 <table class="tabela-precos-bloco">
                     <thead>
                         <tr>
@@ -224,7 +234,8 @@
                         {# BRANCO #}
                         {% set variantes_branco = [] %}
                         {% for variante in produto.variants %}
-                            {% if variante.codigo_produto[-1] == '1' %}
+                            {% set codigo_check = variante.codigo_produto|string %}
+                            {% if codigo_check and codigo_check[-1] == '1' %}
                                 {% if variante[tabela_preco] is defined and variante[tabela_preco] != None %}
                                     {% set _ = variantes_branco.append(variante) %}
                                 {% endif %}
@@ -240,7 +251,8 @@
                         {# PRETO #}
                         {% set variantes_preto = [] %}
                         {% for variante in produto.variants %}
-                            {% if variante.codigo_produto[-1] == '4' %}
+                            {% set codigo_check = variante.codigo_produto|string %}
+                            {% if codigo_check and codigo_check[-1] == '4' %}
                                 {% if variante[tabela_preco] is defined and variante[tabela_preco] != None %}
                                     {% set _ = variantes_preto.append(variante) %}
                                 {% endif %}
@@ -253,32 +265,44 @@
                             </tr>
                         {% endif %}
 
-                        {# COLORIDAS #}
-                        {% set coloridas_precos_data = [] %}
-                        {% for variante in produto.variants %}
-                            {% set codigo = variante.codigo_produto %}
-                            {% set ultimo_digito = codigo[-1] if codigo else '' %}
-                            {% set ultimos_dois_digitos = codigo[-2:] if codigo and codigo|length >= 2 else '' %}
-                            {% if (ultimo_digito in ['2','3','5','6','7','8','9']) or (ultimos_dois_digitos == '12') or (ultimos_dois_digitos == '65') %}
-                                {% if variante[tabela_preco] is defined and variante[tabela_preco] != None %}
-                                    {% if variante[tabela_preco] not in coloridas_precos_data %}
-                                        {% set _ = coloridas_precos_data.append(variante[tabela_preco]) %}
+                        {# BEGE - Agora sempre mostrar para produtos especiais #}
+                        {% if produto.is_special_bpb_product %}
+                            {% set variantes_bege = [] %}
+                            {% for variante in produto.variants %}
+                                {% set codigo_check = variante.codigo_produto|string %}
+                                {% if codigo_check and codigo_check[-1] == '5' %}
+                                    {% if variante[tabela_preco] is defined and variante[tabela_preco] != None %}
+                                        {% set _ = variantes_bege.append(variante) %}
                                     {% endif %}
                                 {% endif %}
-                            {% endif %}
-                        {% endfor %}
-                        {% set precos_unicos_coloridas = coloridas_precos_data|sort %}
-                        {% if precos_unicos_coloridas|length > 0 %}
-                            {% if precos_unicos_coloridas|length == 1 %}
+                            {% endfor %}
+                            {% if variantes_bege|length > 0 %}
                                 <tr>
-                                    <td><span class="cor-label-bloco cor-colorida-bloco">COLORIDAS</span></td>
-                                    <td>R$ {{ precos_unicos_coloridas[0]|format_price }}</td>
+                                    <td><span class="cor-label-bloco cor-bege-bloco">BEGE</span></td>
+                                    <td>R$ {{ variantes_bege[0][tabela_preco]|format_price }}</td>
                                 </tr>
-                            {% else %}
-                                {% for preco_colorida_val in precos_unicos_coloridas %}
+                            {% endif %}
+                        {% else %}
+                            {# Caso não seja produto especial, mostrar outras cores como COLORIDAS #}
+                            {% set precos_outras_coloridas = [] %}
+                            {% for v_geral in produto.variants %}
+                                {% set codigo_v_geral = v_geral.codigo_produto|string %}
+                                {% set ult_v_geral = codigo_v_geral[-1] if codigo_v_geral else '' %}
+                                {% if ult_v_geral not in ['1', '4', '5'] %}
+                                    {% if v_geral[tabela_preco] is defined and v_geral[tabela_preco] != none %}
+                                        {% if v_geral[tabela_preco] not in precos_outras_coloridas %}
+                                            {% set _ = precos_outras_coloridas.append(v_geral[tabela_preco]) %}
+                                        {% endif %}
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if precos_outras_coloridas|length > 0 %}
+                                {% set precos_unicos_para_coloridas = precos_outras_coloridas|sort|unique|list %}
+                                {% for preco_val in precos_unicos_para_coloridas %}
                                     <tr>
                                         <td><span class="cor-label-bloco cor-colorida-bloco">COLORIDAS</span></td>
-                                        <td>R$ {{ preco_colorida_val|format_price }}</td>
+                                        <td>R$ {{ preco_val|format_price }}</td>
                                     </tr>
                                 {% endfor %}
                             {% endif %}
