@@ -2,10 +2,136 @@
 
 {% block title %}Exportar Catálogo em PDF{% endblock %}
 
+{% block head %}
+{{ super() }}
+<style>
+    .progress-container {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+    }
+
+    .progress-content {
+        background: white;
+        padding: 2rem;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 500px;
+        text-align: center;
+        position: relative;
+        cursor: default;
+    }
+
+    .close-button {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #f0f0f0;
+        border: none;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .close-button:hover {
+        background: #e0e0e0;
+        transform: scale(1.1);
+    }
+
+    .close-button::before,
+    .close-button::after {
+        content: '';
+        position: absolute;
+        width: 15px;
+        height: 2px;
+        background: #666;
+        transform-origin: center;
+    }
+
+    .close-button::before {
+        transform: rotate(45deg);
+    }
+
+    .close-button::after {
+        transform: rotate(-45deg);
+    }
+
+    .progress-bar-container {
+        width: 100%;
+        height: 20px;
+        background: #f0f0f0;
+        border-radius: 10px;
+        overflow: hidden;
+        margin: 1rem 0;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .progress-bar {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(45deg, #2196F3, #4CAF50);
+        border-radius: 10px;
+        transition: width 0.3s ease-in-out;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .progress-bar::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.3) 50%,
+            rgba(255, 255, 255, 0) 100%
+        );
+        animation: shimmer 2s infinite;
+    }
+
+    .progress-text {
+        font-size: 1.1rem;
+        color: #333;
+        margin-bottom: 0.5rem;
+    }
+
+    .progress-percentage {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #2196F3;
+    }
+
+    @keyframes shimmer {
+        0% {
+            transform: translateX(-100%);
+        }
+        100% {
+            transform: translateX(100%);
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container py-4">
     <h2 class="mb-4">Exportar Catálogo em PDF</h2>
-    <form method="POST">
+    <form method="POST" id="pdfForm">
         <div class="row mb-3">
             <div class="col-md-6">
                 <label for="tabela_preco" class="form-label">Tabela de Preço</label>
@@ -30,4 +156,68 @@
         </div>
     </form>
 </div>
+
+<!-- Barra de Progresso -->
+<div class="progress-container" id="progressContainer">
+    <div class="progress-content">
+        <button class="close-button" id="closeButton" title="Fechar">×</button>
+        <div class="progress-text">Gerando PDF...</div>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="progress-percentage" id="progressPercentage">0%</div>
+    </div>
+</div>
+
+<script>
+document.getElementById('pdfForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Mostrar o container de progresso
+    const progressContainer = document.getElementById('progressContainer');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercentage = document.getElementById('progressPercentage');
+    const closeButton = document.getElementById('closeButton');
+    progressContainer.style.display = 'flex';
+    
+    // Simular progresso
+    let progress = 0;
+    const interval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress >= 100) {
+            progress = 100;
+            clearInterval(interval);
+            // Mostrar o botão de fechar quando atingir 100%
+            closeButton.style.display = 'flex';
+        }
+        progressBar.style.width = `${progress}%`;
+        progressPercentage.textContent = `${Math.round(progress)}%`;
+    }, 500);
+
+    // Enviar o formulário após um pequeno delay
+    setTimeout(() => {
+        this.submit();
+    }, 100);
+});
+
+// Função para fechar a barra de progresso
+function closeProgressBar() {
+    const progressContainer = document.getElementById('progressContainer');
+    progressContainer.style.display = 'none';
+}
+
+// Adicionar evento de clique no botão de fechar
+document.getElementById('closeButton').addEventListener('click', function(e) {
+    e.stopPropagation(); // Impedir que o clique se propague para o container
+    closeProgressBar();
+});
+
+// Adicionar evento de clique no container (fundo escuro)
+document.getElementById('progressContainer').addEventListener('click', function(e) {
+    // Verificar se o clique foi no container e não no conteúdo
+    if (e.target === this) {
+        closeProgressBar();
+    }
+});
+</script>
 {% endblock %} 

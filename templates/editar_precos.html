@@ -11,6 +11,10 @@
                 <label for="percentual" class="form-label">Ajuste Percentual (%)</label>
                 <input type="number" step="0.01" class="form-control" id="percentual" placeholder="Ex: 5 para +5%" autocomplete="off">
             </div>
+            <div class="col-md-4">
+                <label for="valor_fixo" class="form-label">Ajuste em Valor (R$)</label>
+                <input type="text" class="form-control" id="valor_fixo" placeholder="Ex: 1,50" autocomplete="off">
+            </div>
             <div class="col-md-4 d-flex align-items-end gap-2">
                 <button type="button" class="btn btn-info w-50" id="btn-previsualizar">Gerar Pré-visualização</button>
                 <button type="button" class="btn btn-warning w-50" id="btn-limpar">Limpar</button>
@@ -61,21 +65,46 @@ document.querySelectorAll('.preco-input').forEach(function(input) {
     precosOriginais.push(input.value);
 });
 
+// Função para formatar número para o padrão brasileiro
+function formatarNumeroBR(numero) {
+    return numero.toFixed(2).replace('.', ',');
+}
+
+// Função para converter string de número BR para float
+function converterParaFloat(valor) {
+    return parseFloat(valor.replace('R$','').replace(/\./g, '').replace(',', '.').trim());
+}
+
 document.getElementById('btn-previsualizar').addEventListener('click', function(e) {
     e.preventDefault();
     const percentual = parseFloat(document.getElementById('percentual').value.replace(',', '.'));
-    if (isNaN(percentual)) {
-        alert('Digite um valor percentual válido!');
+    const valorFixo = converterParaFloat(document.getElementById('valor_fixo').value || '0');
+    
+    if (isNaN(percentual) && isNaN(valorFixo)) {
+        alert('Digite um valor percentual ou um valor fixo válido!');
         return;
     }
+
     document.querySelectorAll('.preco-input').forEach(function(input) {
-        let valor = input.value.replace('R$','').replace(/\./g, '').replace(',', '.').trim();
-        valor = parseFloat(valor);
+        let valor = converterParaFloat(input.value);
         if (!isNaN(valor)) {
-            let novo = valor * (1 + percentual/100);
+            let novo = valor;
+            
+            // Aplicar ajuste percentual se fornecido
+            if (!isNaN(percentual)) {
+                novo = novo * (1 + percentual/100);
+            }
+            
+            // Aplicar ajuste fixo se fornecido
+            if (!isNaN(valorFixo)) {
+                novo = novo + valorFixo;
+            }
+            
+            // Garantir que o valor não fique negativo
+            novo = Math.max(0, novo);
+            
             // Formatar para BR
-            novo = novo.toFixed(2).replace('.', ',');
-            input.value = novo;
+            input.value = formatarNumeroBR(novo);
         }
     });
 });
@@ -86,6 +115,19 @@ document.getElementById('btn-limpar').addEventListener('click', function(e) {
         input.value = precosOriginais[idx];
     });
     document.getElementById('percentual').value = '';
+    document.getElementById('valor_fixo').value = '';
+});
+
+// Formatar o campo de valor fixo enquanto digita
+document.getElementById('valor_fixo').addEventListener('input', function(e) {
+    let valor = e.target.value.replace(/[^\d,]/g, '');
+    if (valor) {
+        valor = valor.replace(',', '.');
+        valor = parseFloat(valor);
+        if (!isNaN(valor)) {
+            e.target.value = formatarNumeroBR(valor);
+        }
+    }
 });
 </script>
 {% endblock %} 

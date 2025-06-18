@@ -12,38 +12,48 @@
             font-size: 8.5pt; /* Podemos tentar aumentar um pouco a fonte base com o modo paisagem */
         }
         .catalogo-header {
-            text-align: center;
-            margin-bottom: 15px; /* Aumentar um pouco a margem inferior */
-            padding-bottom: 10px; /* Adicionar padding para linha divisória */
-            border-bottom: 1px solid #ccc; /* Linha divisória */
-            display: flex; /* Usar flexbox para alinhar */
-            flex-wrap: wrap; /* Permitir quebra de linha se necessário */
-            justify-content: space-between; /* Distribuir espaço */
-            align-items: center; /* Alinhar itens verticalmente */
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            border-bottom: 3px solid #e0e0e0;
+            box-sizing: border-box;
         }
         .catalogo-header-principal {
-            text-align: left;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: flex-start;
         }
         .catalogo-header h1 {
-            font-size: 17pt; 
-            letter-spacing: 0.5px; 
-            margin-bottom: 1px;
-            margin-top: 0;
+            font-size: 2em;
+            font-weight: bold;
+            margin: 0 0 2px 0;
+            letter-spacing: 1px;
         }
         .catalogo-header h2 {
-            font-size: 9.5pt; 
+            font-size: 1em;
             font-weight: 400;
-            margin-top: 0;
+            margin: 0;
             color: #555;
-            margin-bottom: 0;
         }
         .catalogo-header-info {
             text-align: right;
-            font-size: 7.5pt; /* Fonte menor para informações adicionais */
-            color: #444;
+            font-size: 0.95em;
+            color: #222;
+            margin: 0;
+            padding: 0;
         }
         .catalogo-header-info p {
             margin: 2px 0;
+        }
+        .linha-cabecalho {
+            width: 100%;
+            border-bottom: 2px solid #ccc;
+            margin: 8px 0 0 0;
         }
 
         .produtos-grid {
@@ -172,7 +182,7 @@
         }
         .cor-branca-bloco {
             color: #222;
-            background: #fff8e1;
+            background: #fffdfa;
             border-color: #e0e0e0;
         }
         .cor-preta-bloco {
@@ -186,29 +196,40 @@
             border-color: #2a8cce;
         }
         .cor-bege-bloco {
-            color: #333; /* Cor do texto para bege */
-            background: #F5F5DC; /* Cor de fundo Bege */
-            /* border-color: #e0e0dc; Opcional, para consistência */
+            color: #333;
+            background: #f5e6b8;
+            border-color: #e0e0dc;
         }
 
         @page {
-            size: A4 landscape; /* Alterado para paisagem */
-            margin: 1cm; 
+            size: A4 landscape;
+            margin: 3cm 1cm 1cm 1cm; /* margem superior aumentada para garantir espaço para o cabeçalho */
+            @top-center {
+                content: element(header);
+            }
+        }
+        #header {
+            position: running(header);
+            box-sizing: border-box;
+            width: 100%;
+            margin: 0;
+            padding: 0;
         }
     </style>
 </head>
 <body>
-    <div class="catalogo-header">
+    <div class="catalogo-header" id="header">
         <div class="catalogo-header-principal">
             <h1>LUZARTE</h1>
             <h2>louças sanitárias</h2>
         </div>
         <div class="catalogo-header-info">
-            <p><strong>Tabela de Preço:</strong> {{ tabela_preco }}</p>
+            <p><strong>Tabela de Preço:</strong> {{ tabela_preco.replace('_', ' ').title() }}</p>
             <p>PAGAMENTO ANTECIPADO -3%</p>
             <p>PRAZO PAGAMENTO 30/45/60DD</p>
         </div>
     </div>
+    <div class="linha-cabecalho"></div>
     <div class="produtos-grid">
     {% for produto in produtos %}
         <div class="produto-bloco">

@@ -15,6 +15,7 @@ try:
     from weasyprint import HTML
 except ImportError:
     HTML = None
+from PIL import Image
 
 # Carrega variáveis de ambiente
 load_dotenv()
@@ -62,10 +63,12 @@ class User(UserMixin):
 
 @login_manager.user_loader
 def load_user(user_id):
-    if user_id == 'dono':
-        return User('dono', 'dono')
-    elif user_id == 'admin':
-        return User('admin', 'admin')
+    if db is None:
+        return None
+    
+    user_data = db.users.find_one({'username': user_id})
+    if user_data:
+        return User(user_data['username'], user_data['role'])
     return None
 
 # Funções auxiliares
@@ -83,16 +86,18 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         
-        # Verificação de credenciais
-        if username == 'dono' and password == 'senha123':
-            user = User('dono', 'dono')
+        if db is None:
+            flash('Erro: Conexão com o banco de dados não estabelecida.')
+            return render_template('login.html')
+        
+        # Buscar usuário no banco de dados
+        user_data = db.users.find_one({'username': username})
+        
+        if user_data and check_password_hash(user_data['password'], password):
+            user = User(user_data['username'], user_data['role'])
             login_user(user)
-            # Redirecionar para a galeria após login do dono
             return redirect(url_for('galeria'))
-        elif username == 'admin' and password == 'admin123':
-            user = User('admin', 'admin')
-            login_user(user)
-            return redirect(url_for('admin'))
+        
         flash('Credenciais inválidas')
     return render_template('login.html')
 
@@ -100,9 +105,11 @@ def login():
 @login_required
 def logout():
     logout_user()
-    return redirect(url_for('galeria'))
+    flash('Você foi desconectado com sucesso.')
+    return redirect(url_for('login'))
 
 @app.route('/galeria')
+@login_required
 def galeria():
     if produtos_collection is None:
          flash('Erro: Conexão com o MongoDB não estabelecida.')
@@ -420,6 +427,25 @@ def upload_produtos():
     # Redirecionar para a primeira página do admin após importação
     return redirect(url_for('admin', page=1))
 
+# Função para otimizar e salvar imagem
+def otimizar_e_salvar_imagem(file_storage, caminho_destino, tamanho_max_kb=500):
+    """Otimiza a imagem do upload, converte para JPEG, fundo branco se PNG, e salva."""
+    img = Image.open(file_storage)
+    # Se for PNG com transparência, converte para fundo branco
+    if img.mode in ("RGBA", "P"):
+        fundo = Image.new("RGB", img.size, (255, 255, 255))
+        fundo.paste(img, mask=img.split()[-1])
+        img = fundo
+    else:
+        img = img.convert("RGB")
+    qualidade = 85
+    while qualidade >= 30:
+        img.save(caminho_destino, format='JPEG', quality=qualidade, optimize=True)
+        tamanho_kb = os.path.getsize(caminho_destino) // 1024
+        if tamanho_kb <= tamanho_max_kb:
+            break
+        qualidade -= 5
+
 @app.route('/upload_imagem', methods=['POST'])
 @login_required
 def upload_imagem():
@@ -447,20 +473,18 @@ def upload_imagem():
                  flash(f'Código do produto {codigo_produto} não encontrado.')
                  return redirect(url_for('admin'))
                  
-            filename = secure_filename(f"{codigo_produto}_{file.filename}")
+            # Sempre salva como JPEG otimizado
+            filename = secure_filename(f"{codigo_produto}.jpg")
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             
             # Garante que o diretório de uploads exista
             os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
             
-            file.save(filepath)
+            # Otimiza e salva a imagem
+            otimizar_e_salvar_imagem(file, filepath)
             
-            # Atualiza o caminho da imagem no MongoDB
-            # Salvar apenas o caminho relativo ao diretório static, construindo manualmente
-            # Removido: caminho_relativo_static = os.path.relpath(filepath, app.static_folder)
-            
-            # O caminho a ser salvo no DB deve ser relativo a pasta 'static', e construído como 'uploads/images/nome_do_arquivo.ext'
-            caminho_para_db = os.path.join('uploads', 'images', filename).replace('\\', '/') # Usar barras normais para consistência, embora o os.path.join use a barra do sistema
+            # Caminho para salvar no banco (sempre .jpg agora)
+            caminho_para_db = os.path.join('uploads', 'images', filename).replace('\\', '/')
 
             produtos_collection.update_one(
                 {'codigo_produto': codigo_produto},
