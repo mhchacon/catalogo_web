@@ -44,7 +44,6 @@ O sistema suporta múltiplas tabelas de preço.
 - MongoDB
 - Dependências listadas em requirements.txt
 
-
 ## Uso
 1. Acesse o sistema através do navegador
 2. Faça login com suas credenciais

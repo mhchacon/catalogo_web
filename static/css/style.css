@@ -1,0 +1,339 @@
+:root {
+    --primary-color: #0d6efd;
+    --primary-hover: #0b5ed7;
+    --primary-light: #e7f1ff;
+    --primary-dark: #0a58ca;
+    --secondary-color: #6c757d;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #0dcaf0;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+}
+
+/* Estilos gerais */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+/* Cabeçalho */
+.navbar {
+    background-color: var(--primary-color) !important;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.navbar-brand {
+    color: white !important;
+    font-weight: 600;
+}
+
+.nav-link {
+    color: rgba(255,255,255,0.9) !important;
+    transition: color 0.3s ease;
+}
+
+.nav-link:hover {
+    color: white !important;
+}
+
+/* Botões */
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Cards */
+.card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Galeria */
+.gallery-container {
+    padding: 20px 0;
+}
+
+.product-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.product-card .card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.product-card .card-title {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    color: var(--dark-color);
+}
+
+.product-card .card-text {
+    color: var(--secondary-color);
+    font-size: 0.9rem;
+}
+
+.product-card .price {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-top: auto;
+}
+
+/* Paginação */
+.pagination .page-link {
+    color: var(--primary-color);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Formulários */
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.form-label {
+    color: var(--dark-color);
+    font-weight: 500;
+}
+
+/* Alertas */
+.alert {
+    border: none;
+    border-radius: 4px;
+}
+
+.alert-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+/* Barra de progresso */
+.progress {
+    height: 0.5rem;
+    background-color: #e9ecef;
+}
+
+.progress-bar {
+    background-color: var(--primary-color);
+}
+
+/* Links */
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+a:hover {
+    color: var(--primary-hover);
+}
+
+/* Tabelas */
+.table {
+    background-color: white;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.table thead th {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+}
+
+.table-hover tbody tr:hover {
+    background-color: var(--primary-light);
+}
+
+/* Modal */
+.modal-header {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.modal-header .btn-close {
+    color: white;
+}
+
+/* Dropdown */
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.dropdown-item:hover {
+    background-color: var(--primary-light);
+}
+
+/* Badges */
+.badge {
+    font-weight: 500;
+    padding: 0.35em 0.65em;
+}
+
+.badge-primary {
+    background-color: var(--primary-color);
+}
+
+/* Tooltips */
+.tooltip {
+    font-size: 0.875rem;
+}
+
+.tooltip-inner {
+    background-color: var(--dark-color);
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .product-card {
+        margin-bottom: 15px;
+    }
+}
+
+/* Animações */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+/* Utilitários */
+.text-primary { color: var(--primary-color) !important; }
+.bg-primary { background-color: var(--primary-color) !important; }
+.border-primary { border-color: var(--primary-color) !important; }
+
+/* Estilos específicos para o catálogo PDF */
+.catalogo-pdf {
+    background-color: white;
+    padding: 20px;
+}
+
+.catalogo-pdf .header {
+    text-align: center;
+    margin-bottom: 30px;
+    color: var(--primary-color);
+}
+
+.catalogo-pdf .product-section {
+    margin-bottom: 40px;
+}
+
+.catalogo-pdf .product-title {
+    color: var(--primary-color);
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+}
+
+.catalogo-pdf .price-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.catalogo-pdf .price-table th,
+.catalogo-pdf .price-table td {
+    padding: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.catalogo-pdf .price-table th {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+/* Estilos para o formulário de exportação */
+.export-form {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.export-form .form-label {
+    color: var(--dark-color);
+    font-weight: 500;
+}
+
+.export-form .btn-primary {
+    width: 100%;
+    padding: 10px;
+    font-size: 1.1rem;
+}
+
+/* Estilos para a barra de progresso do download */
+.progress-container {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: var(--light-color);
+    border-radius: 4px;
+}
+
+.progress-text {
+    margin-bottom: 10px;
+    color: var(--dark-color);
+    text-align: center;
+}
+
+/* Estilos para mensagens de feedback */
+.feedback-message {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.feedback-message.success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.feedback-message.error {
+    background-color: #f8d7da;
+    color: #842029;
+} 

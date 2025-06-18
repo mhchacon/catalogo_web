@@ -113,25 +113,46 @@ def logout():
 def galeria():
     if produtos_collection is None:
          flash('Erro: Conexão com o MongoDB não estabelecida.')
-         return render_template('galeria.html', produtos=[], total_pages=0, current_page=1, search_query='', tabela_preco_selecionada='TABELA_VAREJO_5_000')
+         return render_template('galeria.html', produtos=[], total_pages=0, current_page=1, search_query='', tabela_preco_selecionada='TABELA_VAREJO_5_000', categorias=[])
 
     page = request.args.get('page', 1, type=int)
     search_query = request.args.get('search', '')
-    tabela_preco_selecionada = request.args.get('tabela_preco', 'TABELA_VAREJO_5_000') # Default para TABELA_VAREJO_5_000
-    per_page = 24 # Quantidade de produtos por página na galeria
+    tabela_preco_selecionada = request.args.get('tabela_preco', 'TABELA_VAREJO_5_000')
+    categoria_selecionada = request.args.get('categoria', '')
+    cor_selecionada = request.args.get('cor', '')
+    per_page = 24
+
+    # Buscar todas as categorias únicas do banco
+    try:
+        categorias = produtos_collection.distinct('Desc_Familia')
+        categorias = [cat for cat in categorias if cat]
+        categorias.sort()
+    except Exception as e:
+        print(f"Erro ao buscar categorias: {str(e)}")
+        categorias = []
+
+    # Buscar todas as cores únicas do banco
+    try:
+        cores = produtos_collection.distinct('Desc_Cor')
+        cores = [cor for cor in cores if cor]
+        cores.sort()
+    except Exception as e:
+        print(f"Erro ao buscar cores: {str(e)}")
+        cores = []
 
     # Pipeline de agregação para agrupar por código base e incluir variantes
     pipeline = []
 
-    # Estágio 1: Filtro inicial (ativo_catalogo e busca)
+    # Estágio 1: Filtro inicial (ativo_catalogo, busca e categoria)
     match_query = {}
-    # Recolocando o filtro de ativo_catalogo para usuários que não são o dono
     if not (current_user.is_authenticated and current_user.role == 'dono'):
         match_query['ativo_catalogo'] = True
 
     if search_query:
-        # Busca por descrição (case-insensitive) em todas as variantes antes de agrupar
         match_query['descricao_produto'] = {'$regex': re.escape(search_query), '$options': 'i'}
+    
+    if categoria_selecionada:
+        match_query['Desc_Familia'] = categoria_selecionada
         
     pipeline.append({'$match': match_query})
 
@@ -216,6 +237,10 @@ def galeria():
         # Processar os resultados para ter uma estrutura mais amigável no template
         produtos_para_template = []
         for grupo in produtos_agrupados:
+            # Se cor_selecionada, só adiciona o grupo se alguma variante tem essa cor
+            if cor_selecionada:
+                if not any(variant.get('Desc_Cor') == cor_selecionada for variant in grupo['variants']):
+                    continue
             main_prod = grupo['main_product']
             variants_list = []
             for variant in grupo['variants']:
@@ -247,13 +272,17 @@ def galeria():
                                total_pages=total_pages, 
                                current_page=page,
                                search_query=search_query,
-                               tabela_preco_selecionada=tabela_preco_selecionada)
+                               tabela_preco_selecionada=tabela_preco_selecionada,
+                               categorias=categorias,
+                               categoria_selecionada=categoria_selecionada,
+                               cores=cores,
+                               cor_selecionada=cor_selecionada)
     except Exception as e:
         print("ERRO GRAVE NA GALERIA:", e)
         import traceback
         traceback.print_exc()
         flash(f'Erro ao carregar produtos na galeria: {str(e)}')
-        return render_template('galeria.html', produtos=[], total_pages=0, current_page=1, search_query=search_query, tabela_preco_selecionada=tabela_preco_selecionada)
+        return render_template('galeria.html', produtos=[], total_pages=0, current_page=1, search_query=search_query, tabela_preco_selecionada=tabela_preco_selecionada, categorias=categorias, categoria_selecionada=categoria_selecionada)
 
 @app.route('/admin')
 @login_required
@@ -731,117 +760,148 @@ def exportar_catalogo_pdf():
     ]
 
     if request.method == 'POST':
-        tabela_preco = request.form.get('tabela_preco')
-        apenas_com_foto = request.form.get('apenas_com_foto') == 'on'
+        try:
+            tabela_preco = request.form.get('tabela_preco')
+            apenas_com_foto = request.form.get('apenas_com_foto') == 'on'
 
-        # 1. Buscar TODAS as variantes que são 'ativo_catalogo: true'
-        filtro_inicial = {'ativo_catalogo': True}
-        todas_variantes_ativas = list(produtos_collection.find(filtro_inicial))
+            # 1. Buscar TODAS as variantes que são 'ativo_catalogo: true'
+            filtro_inicial = {'ativo_catalogo': True}
+            todas_variantes_ativas = list(produtos_collection.find(filtro_inicial))
 
-        # 2. Agrupar estas variantes por codigo_base
-        produtos_por_grupo_temp = {}
-        for variante_ativa in todas_variantes_ativas:
-            codigo_base = variante_ativa.get('codigo_base')
-            if not codigo_base: # Pular variantes sem codigo_base
-                continue
-            if codigo_base not in produtos_por_grupo_temp:
-                produtos_por_grupo_temp[codigo_base] = []
-            produtos_por_grupo_temp[codigo_base].append(variante_ativa)
+            # 2. Agrupar estas variantes por codigo_base
+            produtos_por_grupo_temp = {}
+            for variante_ativa in todas_variantes_ativas:
+                codigo_base = variante_ativa.get('codigo_base')
+                if not codigo_base:  # Pular variantes sem codigo_base
+                    continue
+                if codigo_base not in produtos_por_grupo_temp:
+                    produtos_por_grupo_temp[codigo_base] = []
+                produtos_por_grupo_temp[codigo_base].append(variante_ativa)
 
-        # 3. Preparar uma lista de grupos, determinando o produto principal para cada um
-        #    Esta lista será filtrada a seguir se 'apenas_com_foto' estiver ativo.
-        grupos_pre_filtro = []
-        for codigo_base_key, variantes_do_grupo_atual in produtos_por_grupo_temp.items():
-            if not variantes_do_grupo_atual:
-                continue
+            # 3. Preparar uma lista de grupos
+            grupos_pre_filtro = []
+            for codigo_base_key, variantes_do_grupo_atual in produtos_por_grupo_temp.items():
+                if not variantes_do_grupo_atual:
+                    continue
 
-            # Determinar o produto principal (preferencialmente branco) para imagem/descrição
-            produto_principal_do_grupo = None
-            for v_principal_check in variantes_do_grupo_atual:
-                if v_principal_check.get('codigo_produto','').endswith('1'):
-                    produto_principal_do_grupo = v_principal_check
-                    break
-            if not produto_principal_do_grupo: # Fallback se não houver branco
-                # Ordenar para garantir uma seleção consistente (ex: pelo código do produto)
-                produto_principal_do_grupo = sorted(variantes_do_grupo_atual, key=lambda v_sort: v_sort.get('codigo_produto', ''))[0]
-            
-            # Ordenar as variantes que serão passadas para o template (ex: por código do produto)
-            variantes_ordenadas_para_template = sorted(variantes_do_grupo_atual, key=lambda v_sort: v_sort.get('codigo_produto', ''))
+                # Determinar o produto principal (preferencialmente branco)
+                produto_principal_do_grupo = None
+                for v_principal_check in variantes_do_grupo_atual:
+                    if v_principal_check.get('codigo_produto','').endswith('1'):
+                        produto_principal_do_grupo = v_principal_check
+                        break
+                if not produto_principal_do_grupo:
+                    produto_principal_do_grupo = sorted(variantes_do_grupo_atual, key=lambda v_sort: v_sort.get('codigo_produto', ''))[0]
+                
+                variantes_ordenadas_para_template = sorted(variantes_do_grupo_atual, key=lambda v_sort: v_sort.get('codigo_produto', ''))
 
-            # Limpar a descrição do produto principal
-            desc_original = produto_principal_do_grupo.get('descricao_produto', '')
-            desc_temp = desc_original
-            palavras_chave_remover = ["branco", "branca", "branc"]
+                # Limpar a descrição
+                desc_original = produto_principal_do_grupo.get('descricao_produto', '')
+                desc_temp = desc_original
+                palavras_chave_remover = ["branco", "branca", "branc"]
 
-            for palavra in palavras_chave_remover:
-                # Regex para encontrar a palavra inteira (case insensitive) e remover ela e espaços adjacentes de forma mais controlada.
-                # Remove a palavra e um espaço à direita OU um espaço à esquerda e a palavra.
-                # Isso ajuda a evitar espaços duplos de forma mais direta.
-                # Primeira tentativa: palavra seguida por um ou mais espaços
-                regex_pattern_direita = r'\b' + re.escape(palavra) + r'\b\s+'
-                desc_temp = re.sub(regex_pattern_direita, '', desc_temp, flags=re.IGNORECASE)
-                # Segunda tentativa: espaço seguido pela palavra (se não foi pego antes, ex: fim da string sem espaço depois)
-                regex_pattern_esquerda = r'\s+\b' + re.escape(palavra) + r'\b'
-                desc_temp = re.sub(regex_pattern_esquerda, '', desc_temp, flags=re.IGNORECASE)
-                # Caso a palavra esteja sozinha ou sem espaços (apenas para garantir, \b deve tratar isso)
-                if desc_temp.lower() == palavra.lower():
-                    desc_temp = ''
-            
-            # Limpeza final de espaços extras e trim.
-            desc_final = ' '.join(desc_temp.split()).strip()
+                for palavra in palavras_chave_remover:
+                    regex_pattern_direita = r'\b' + re.escape(palavra) + r'\b\s+'
+                    desc_temp = re.sub(regex_pattern_direita, '', desc_temp, flags=re.IGNORECASE)
+                    regex_pattern_esquerda = r'\s+\b' + re.escape(palavra) + r'\b'
+                    desc_temp = re.sub(regex_pattern_esquerda, '', desc_temp, flags=re.IGNORECASE)
+                    if desc_temp.lower() == palavra.lower():
+                        desc_temp = ''
+                
+                desc_final = ' '.join(desc_temp.split()).strip()
 
-            grupos_pre_filtro.append({
-                'descricao_produto': desc_final, # Usar a descrição limpa
-                'caminho_imagem': produto_principal_do_grupo.get('caminho_imagem'),
-                'codigo_base': codigo_base_key,
-                'variants': variantes_ordenadas_para_template, # Todas as variantes ativas do grupo
-                '_tem_imagem_principal': True if produto_principal_do_grupo.get('caminho_imagem') else False # Flag para filtro
-            })
+                grupos_pre_filtro.append({
+                    'descricao_produto': desc_final,
+                    'caminho_imagem': produto_principal_do_grupo.get('caminho_imagem'),
+                    'codigo_base': codigo_base_key,
+                    'variants': variantes_ordenadas_para_template,
+                    '_tem_imagem_principal': True if produto_principal_do_grupo.get('caminho_imagem') else False
+                })
 
-        # 4. Filtrar os GRUPOS se 'apenas_com_foto' estiver marcado
-        produtos_agrupados = []
-        if apenas_com_foto:
-            for grupo_candidato in grupos_pre_filtro:
-                if grupo_candidato['_tem_imagem_principal']:
-                    del grupo_candidato['_tem_imagem_principal'] # Remover flag auxiliar
+            # 4. Filtrar os GRUPOS se 'apenas_com_foto' estiver marcado
+            produtos_agrupados = []
+            if apenas_com_foto:
+                for grupo_candidato in grupos_pre_filtro:
+                    if grupo_candidato['_tem_imagem_principal']:
+                        del grupo_candidato['_tem_imagem_principal']
+                        produtos_agrupados.append(grupo_candidato)
+            else:
+                for grupo_candidato in grupos_pre_filtro:
+                    del grupo_candidato['_tem_imagem_principal']
                     produtos_agrupados.append(grupo_candidato)
-        else: # Se 'apenas_com_foto' não estiver marcado, incluir todos os grupos
-            for grupo_candidato in grupos_pre_filtro:
-                del grupo_candidato['_tem_imagem_principal'] # Remover flag auxiliar
-                produtos_agrupados.append(grupo_candidato)
-        
-        # Agora 'produtos_agrupados' contém os grupos corretos com todas as suas variantes ativas.
-        # Ordenar os grupos finais (opcional, ex: pela descrição do produto principal)
-        produtos_agrupados.sort(key=lambda g: g.get('descricao_produto',''))
-
-        # Adicionar flag para tratamento especial, lendo do banco de dados
-        for grupo in produtos_agrupados:
-            # Um grupo é especial se QUALQUER uma de suas variantes tiver a flag
-            grupo['is_special_bpb_product'] = any(v.get('tratamento_cor_especial', False) for v in grupo['variants'])
             
-            # Debug para verificar se a flag está sendo definida corretamente
-            if grupo['is_special_bpb_product']:
-                print(f"Produto especial encontrado: {grupo['descricao_produto']}")
-                for v in grupo['variants']:
-                    print(f"  - Variante: {v.get('codigo_produto')} - tratamento_cor_especial: {v.get('tratamento_cor_especial', False)}")
+            produtos_agrupados.sort(key=lambda g: g.get('descricao_produto',''))
 
-        # DEBUG: Imprimir produtos_agrupados antes de renderizar o template do PDF
-        # print("DEBUG app.py/exportar_catalogo_pdf - produtos_agrupados para o PDF:", produtos_agrupados) # Comentado para reduzir logs
+            # Adicionar flag para tratamento especial
+            for grupo in produtos_agrupados:
+                grupo['is_special_bpb_product'] = any(v.get('tratamento_cor_especial', False) for v in grupo['variants'])
 
-        html = render_template('catalogo_pdf.html', produtos=produtos_agrupados, tabela_preco=tabela_preco, tabelas_preco=tabelas_preco)
-        if HTML is None:
-            flash('WeasyPrint não está instalado no servidor.', 'danger')
+            if HTML is None:
+                flash('WeasyPrint não está instalado no servidor.', 'danger')
+                return redirect(url_for('exportar_catalogo_pdf'))
+
+            # Gerar o PDF
+            html = render_template('catalogo_pdf.html', 
+                                 produtos=produtos_agrupados, 
+                                 tabela_preco=tabela_preco, 
+                                 tabelas_preco=tabelas_preco)
+
+            # Criar um nome de arquivo único
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f'catalogo_luzarte_{timestamp}.pdf'
+            
+            # Criar diretório temporário se não existir
+            temp_dir = os.path.join('static', 'temp')
+            os.makedirs(temp_dir, exist_ok=True)
+            
+            # Caminho completo do arquivo
+            filepath = os.path.join(temp_dir, filename)
+            
+            # Gerar o PDF
+            HTML(string=html, base_url=request.base_url).write_pdf(filepath)
+            
+            # Enviar o arquivo
+            return send_file(
+                filepath,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/pdf'
+            )
+
+        except Exception as e:
+            flash(f'Erro ao gerar o PDF: {str(e)}', 'danger')
+            print(f"Erro na geração do PDF: {str(e)}")
             return redirect(url_for('exportar_catalogo_pdf'))
-        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmpfile:
-            HTML(string=html, base_url=request.base_url).write_pdf(tmpfile.name)
-            tmpfile.seek(0)
-            pdf_data = tmpfile.read()
-        response = make_response(pdf_data)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = 'attachment; filename=catalogo_luzarte.pdf'
-        return response
 
     return render_template('exportar_catalogo_pdf.html', tabelas_preco=tabelas_preco)
+
+@app.route('/api/search_suggestions')
+@login_required
+def search_suggestions():
+    query = request.args.get('q', '').strip()
+    if len(query) < 2:
+        return jsonify([])
+    
+    try:
+        # Buscar produtos que correspondam à query
+        produtos = list(produtos_collection.find({
+            'descricao_produto': {'$regex': re.escape(query), '$options': 'i'}
+        }).limit(10))
+        
+        # Formatar resultados
+        suggestions = []
+        for produto in produtos:
+            suggestions.append({
+                'id': produto['codigo_produto'],
+                'text': f"{produto['descricao_produto']} ({produto['codigo_produto']})",
+                'descricao': produto['descricao_produto'],
+                'codigo': produto['codigo_produto']
+            })
+        
+        return jsonify(suggestions)
+    except Exception as e:
+        print(f"Erro ao buscar sugestões: {str(e)}")
+        return jsonify([])
 
 if __name__ == '__main__':
     app.run(debug=True) 

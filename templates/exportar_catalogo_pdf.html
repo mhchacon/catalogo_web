@@ -129,95 +129,101 @@
 {% endblock %}
 
 {% block content %}
-<div class="container py-4">
-    <h2 class="mb-4">Exportar Catálogo em PDF</h2>
-    <form method="POST" id="pdfForm">
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label for="tabela_preco" class="form-label">Tabela de Preço</label>
-                <select class="form-select" id="tabela_preco" name="tabela_preco" required>
-                    <option value="" disabled selected>Selecione a tabela</option>
-                    {% for tabela, label in tabelas_preco %}
-                        <option value="{{ tabela }}">{{ label }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-6 d-flex align-items-end">
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="apenas_com_foto" name="apenas_com_foto">
-                    <label class="form-check-label" for="apenas_com_foto">
-                        Apenas produtos com foto
-                    </label>
+<div class="container mt-4">
+    <h2>Exportar Catálogo em PDF</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <form id="exportForm" method="POST" action="{{ url_for('exportar_catalogo_pdf') }}">
+                <div class="mb-3">
+                    <label for="tabela_preco" class="form-label">Tabela de Preço:</label>
+                    <select class="form-select" id="tabela_preco" name="tabela_preco" required>
+                        <option value="">Selecione uma tabela...</option>
+                        {% for codigo, nome in tabelas_preco %}
+                        <option value="{{ codigo }}">{{ nome }}</option>
+                        {% endfor %}
+                    </select>
                 </div>
-            </div>
-        </div>
-        <div class="mt-4 text-center">
-            <button type="submit" class="btn btn-primary btn-lg">Gerar PDF</button>
-        </div>
-    </form>
-</div>
+                
+                <div class="mb-3 form-check">
+                    <input type="checkbox" class="form-check-input" id="apenas_com_foto" name="apenas_com_foto">
+                    <label class="form-check-label" for="apenas_com_foto">Apenas produtos com foto</label>
+                </div>
 
-<!-- Barra de Progresso -->
-<div class="progress-container" id="progressContainer">
-    <div class="progress-content">
-        <button class="close-button" id="closeButton" title="Fechar">×</button>
-        <div class="progress-text">Gerando PDF...</div>
-        <div class="progress-bar-container">
-            <div class="progress-bar" id="progressBar"></div>
+                <div id="progressContainer" style="display: none;">
+                    <div class="progress mb-3">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <p id="progressText" class="text-center">Preparando o catálogo...</p>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="exportButton">
+                    <i class="fas fa-file-pdf me-2"></i>Exportar PDF
+                </button>
+            </form>
         </div>
-        <div class="progress-percentage" id="progressPercentage">0%</div>
     </div>
 </div>
 
 <script>
-document.getElementById('pdfForm').addEventListener('submit', function(e) {
+document.getElementById('exportForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
     // Mostrar o container de progresso
-    const progressContainer = document.getElementById('progressContainer');
-    const progressBar = document.getElementById('progressBar');
-    const progressPercentage = document.getElementById('progressPercentage');
-    const closeButton = document.getElementById('closeButton');
-    progressContainer.style.display = 'flex';
+    document.getElementById('progressContainer').style.display = 'block';
+    document.getElementById('exportButton').disabled = true;
     
     // Simular progresso
     let progress = 0;
+    const progressBar = document.getElementById('progressBar');
+    const progressText = document.getElementById('progressText');
+    
     const interval = setInterval(() => {
-        progress += Math.random() * 15;
-        if (progress >= 100) {
-            progress = 100;
-            clearInterval(interval);
-            // Mostrar o botão de fechar quando atingir 100%
-            closeButton.style.display = 'flex';
+        progress += 5;
+        if (progress <= 90) {
+            progressBar.style.width = progress + '%';
+            progressText.textContent = 'Gerando catálogo... ' + progress + '%';
         }
-        progressBar.style.width = `${progress}%`;
-        progressPercentage.textContent = `${Math.round(progress)}%`;
     }, 500);
-
-    // Enviar o formulário após um pequeno delay
-    setTimeout(() => {
-        this.submit();
-    }, 100);
-});
-
-// Função para fechar a barra de progresso
-function closeProgressBar() {
-    const progressContainer = document.getElementById('progressContainer');
-    progressContainer.style.display = 'none';
-}
-
-// Adicionar evento de clique no botão de fechar
-document.getElementById('closeButton').addEventListener('click', function(e) {
-    e.stopPropagation(); // Impedir que o clique se propague para o container
-    closeProgressBar();
-});
-
-// Adicionar evento de clique no container (fundo escuro)
-document.getElementById('progressContainer').addEventListener('click', function(e) {
-    // Verificar se o clique foi no container e não no conteúdo
-    if (e.target === this) {
-        closeProgressBar();
-    }
+    
+    // Enviar o formulário
+    fetch(this.action, {
+        method: 'POST',
+        body: new FormData(this)
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Erro ao gerar PDF');
+        return response.blob();
+    })
+    .then(blob => {
+        clearInterval(interval);
+        progressBar.style.width = '100%';
+        progressText.textContent = 'Download iniciado!';
+        
+        // Criar link para download
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'catalogo_luzarte.pdf';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        
+        // Resetar o formulário após 2 segundos
+        setTimeout(() => {
+            document.getElementById('progressContainer').style.display = 'none';
+            document.getElementById('exportButton').disabled = false;
+            progressBar.style.width = '0%';
+            progressText.textContent = 'Preparando o catálogo...';
+        }, 2000);
+    })
+    .catch(error => {
+        clearInterval(interval);
+        progressText.textContent = 'Erro ao gerar PDF: ' + error.message;
+        document.getElementById('exportButton').disabled = false;
+    });
 });
 </script>
 {% endblock %} 

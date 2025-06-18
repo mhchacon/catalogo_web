@@ -1,1 +1,194 @@
-/* Estilos customizados */ 
+/* Estilos Gerais */
+:root {
+    --primary-color: #2c3e50;
+    --secondary-color: #34495e;
+    --accent-color: #3498db;
+    --success-color: #2ecc71;
+    --warning-color: #f1c40f;
+    --danger-color: #e74c3c;
+    --light-gray: #f8f9fa;
+    --dark-gray: #343a40;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--light-gray);
+    color: var(--dark-gray);
+}
+
+/* Navbar Moderna */
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color)) !important;
+}
+
+.navbar-brand {
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Cards de Produto */
+.product-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.product-image {
+    transition: transform 0.3s;
+    background-color: white;
+}
+
+.product-card:hover .product-image {
+    transform: scale(1.05);
+}
+
+/* Feedback Visual */
+.btn {
+    transition: all 0.2s;
+    border-radius: 5px;
+    font-weight: 500;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Animações de Feedback */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.alert {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Busca Avançada */
+.search-container {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.search-input {
+    border-radius: 20px;
+    padding: 10px 20px;
+    border: 2px solid #eee;
+    transition: all 0.3s;
+}
+
+.search-input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+/* Filtros */
+.filter-section {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.filter-title {
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+}
+
+/* Paginação */
+.pagination {
+    margin-top: 30px;
+}
+
+.page-link {
+    color: var(--primary-color);
+    border: none;
+    margin: 0 2px;
+    border-radius: 5px;
+}
+
+.page-item.active .page-link {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .product-card {
+        margin-bottom: 20px;
+    }
+    
+    .search-container {
+        padding: 15px;
+    }
+    
+    .filter-section {
+        margin-bottom: 15px;
+    }
+}
+
+/* Loading States */
+.loading {
+    position: relative;
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 30px;
+    height: 30px;
+    margin: -15px 0 0 -15px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid var(--accent-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Tooltips e Popovers */
+[data-tooltip] {
+    position: relative;
+    cursor: help;
+}
+
+[data-tooltip]:before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 5px 10px;
+    background: var(--dark-gray);
+    color: white;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s;
+}
+
+[data-tooltip]:hover:before {
+    opacity: 1;
+    visibility: visible;
+} 

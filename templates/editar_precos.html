@@ -118,9 +118,9 @@ document.getElementById('btn-limpar').addEventListener('click', function(e) {
     document.getElementById('valor_fixo').value = '';
 });
 
-// Formatar o campo de valor fixo enquanto digita
-document.getElementById('valor_fixo').addEventListener('input', function(e) {
-    let valor = e.target.value.replace(/[^\d,]/g, '');
+// Formatar o campo de valor fixo ao sair do campo (blur)
+document.getElementById('valor_fixo').addEventListener('blur', function(e) {
+    let valor = e.target.value.replace(/[^"d,]/g, '');
     if (valor) {
         valor = valor.replace(',', '.');
         valor = parseFloat(valor);

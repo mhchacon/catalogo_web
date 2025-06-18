@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{% endblock %} - Catálogo de Produtos</title>
     <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Google Icons -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <!-- Estilos Customizados -->
@@ -57,37 +57,58 @@
     {% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('galeria') }}">LUZARTE ESTRELA</a>
+            <a class="navbar-brand" href="{{ url_for('galeria') }}">
+                <img src="{{ url_for('static', filename='luzarte.ico') }}" alt="Logo" width="30" height="30" class="d-inline-block align-text-top me-2">
+                LUZARTE ESTRELA
+            </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('galeria') }}">Galeria</a>
+                        <a class="nav-link" href="{{ url_for('galeria') }}">
+                            <i class="material-symbols-outlined">grid_view</i>
+                            Galeria
+                        </a>
                     </li>
                     {% if current_user.is_authenticated %}
                         {% if current_user.role == 'admin' %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('admin') }}">Admin</a>
+                            <a class="nav-link" href="{{ url_for('admin') }}">
+                                <i class="material-symbols-outlined">admin_panel_settings</i>
+                                Admin
+                            </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('exportar_protheus') }}">Exportar para Protheus</a>
+                            <a class="nav-link" href="{{ url_for('exportar_protheus') }}">
+                                <i class="material-symbols-outlined">download</i>
+                                Exportar Protheus
+                            </a>
                         </li>
                         {% endif %}
                         {% if current_user.role == 'dono' or current_user.role == 'admin' %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('exportar_catalogo_pdf') }}">Exportar PDF</a>
+                            <a class="nav-link" href="{{ url_for('exportar_catalogo_pdf') }}">
+                                <i class="material-symbols-outlined">picture_as_pdf</i>
+                                Exportar PDF
+                            </a>
                         </li>
                         {% endif %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('logout') }}">Sair</a>
+                            <a class="nav-link" href="{{ url_for('logout') }}">
+                                <i class="material-symbols-outlined">logout</i>
+                                Sair
+                            </a>
                         </li>
                     {% else %}
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                            <a class="nav-link" href="{{ url_for('login') }}">
+                                <i class="material-symbols-outlined">login</i>
+                                Login
+                            </a>
                         </li>
                     {% endif %}
                 </ul>
@@ -96,10 +117,10 @@
     </nav>
 
     <div class="container mt-4">
-        {% with messages = get_flashed_messages() %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-info alert-dismissible fade show">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show">
                         {{ message }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                     </div>
@@ -110,6 +131,9 @@
         {% block content %}{% endblock %}
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    {% block scripts %}{% endblock %}
 </body>
 </html> 
