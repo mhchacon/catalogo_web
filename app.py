@@ -78,7 +78,12 @@ def allowed_file(filename):
 # Rotas
 @app.route('/')
 def index():
-    return redirect(url_for('galeria'))
+    if current_user.is_authenticated:
+        if current_user.role == 'dono':
+            return redirect(url_for('catalogo'))
+        else:
+            return redirect(url_for('galeria'))
+    return redirect(url_for('login'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -903,5 +908,141 @@ def search_suggestions():
         print(f"Erro ao buscar sugestões: {str(e)}")
         return jsonify([])
 
+@app.route('/catalogo')
+@login_required
+def catalogo():
+    # Mesma lógica da galeria, mas sempre modo visualização (sem edição)
+    if produtos_collection is None:
+         flash('Erro: Conexão com o MongoDB não estabelecida.')
+         return render_template('catalogo.html', produtos=[], total_pages=0, current_page=1, search_query='', tabela_preco_selecionada='TABELA_VAREJO_5_000', categorias=[], cores=[])
+
+    page = request.args.get('page', 1, type=int)
+    search_query = request.args.get('search', '')
+    tabela_preco_selecionada = request.args.get('tabela_preco', 'TABELA_VAREJO_5_000')
+    categoria_selecionada = request.args.get('categoria', '')
+    cor_selecionada = request.args.get('cor', '')
+    per_page = 24
+
+    try:
+        categorias = produtos_collection.distinct('Desc_Familia')
+        categorias = [cat for cat in categorias if cat]
+        categorias.sort()
+    except Exception as e:
+        print(f"Erro ao buscar categorias: {str(e)}")
+        categorias = []
+    try:
+        cores = produtos_collection.distinct('Desc_Cor')
+        cores = [cor for cor in cores if cor]
+        cores.sort()
+    except Exception as e:
+        print(f"Erro ao buscar cores: {str(e)}")
+        cores = []
+
+    pipeline = []
+    match_query = {'ativo_catalogo': True}
+    if search_query:
+        match_query['descricao_produto'] = {'$regex': re.escape(search_query), '$options': 'i'}
+    if categoria_selecionada:
+        match_query['Desc_Familia'] = categoria_selecionada
+    pipeline.append({'$match': match_query})
+    pipeline.append({'$addFields': {
+        'codigo_base': { '$substrCP': ['$codigo_produto', 0, { '$subtract': [{'$strLenCP': '$codigo_produto'}, 1] }] }
+    }})
+    pipeline.append({
+        '$group': {
+            '_id': '$codigo_base',
+            'variants': { '$push': '$$ROOT' },
+            'main_product': {
+                '$first': {
+                    '$filter': {
+                        'input': '$variants',
+                        'as': 'variant',
+                        'cond': { '$or': [
+                            { '$eq': [{ '$substrCP': [{'$ifNull': ['$$variant.codigo_produto', '']}, { '$subtract': [{'$strLenCP': {'$ifNull': ['$$variant.codigo_produto', '']}}, 1] }, 1] }, '1'] },
+                            { '$eq': [{'$ifNull': ['$$variant.Desc_Cor', '']}, 'BRANCO'] }
+                        ]}
+                    }
+                }
+            }
+        }
+    })
+    pipeline.append({
+        '$project': {
+            '_id': 0,
+            'codigo_base': '$_id',
+            'main_product': { '$ifNull': ['$main_product', { '$arrayElemAt': ['$variants', 0] }] },
+            'variants': '$variants'
+        }
+    })
+    count_pipeline = pipeline[:-1]
+    count_pipeline.append({'$count': 'total'})
+    total_produtos_agrupados = 0
+    try:
+        count_result = list(produtos_collection.aggregate(count_pipeline))
+        if count_result:
+            total_produtos_agrupados = count_result[0].get('total', 0)
+    except Exception as e:
+        print(f"Erro ao contar produtos agrupados: {str(e)}")
+    total_pages = math.ceil(total_produtos_agrupados / per_page)
+    if page < 1:
+        page = 1
+    elif page > total_pages and total_pages > 0:
+        page = total_pages
+    elif total_pages == 0:
+         page = 1
+    skip = (page - 1) * per_page
+    pipeline.append({'$skip': skip})
+    pipeline.append({'$limit': per_page})
+    produtos_agrupados = []
+    try:
+        produtos_agrupados = list(produtos_collection.aggregate(pipeline))
+        produtos_para_template = []
+        for grupo in produtos_agrupados:
+            if cor_selecionada:
+                if not any(variant.get('Desc_Cor') == cor_selecionada for variant in grupo['variants']):
+                    continue
+            main_prod = grupo['main_product']
+            variants_list = []
+            for variant in grupo['variants']:
+                tabelas_preco = [
+                    'TABELA_VAREJO_5_000',
+                    'TABELA_VAREJO_25_000',
+                    'TABELA_VAREJO_50_000',
+                    'TABELA_ATACADO',
+                    'TABELA_GOLD_PARCEIRO',
+                    'TABELA_ATACADO_AMAZONIA_E_MACAPA',
+                    'TABELA_ACRE_E_RONDONIA'
+                ]
+                precos = {k: variant.get(k, 0) for k in tabelas_preco}
+                variant_data = {
+                    'codigo_produto': variant.get('codigo_produto'),
+                    'Desc_Cor': variant.get('Desc_Cor', 'Não Informado'),
+                    'precos': precos
+                }
+                variants_list.append(variant_data)
+            produtos_para_template.append({
+                'codigo_base': grupo['codigo_base'],
+                'descricao_produto': main_prod.get('descricao_produto'),
+                'caminho_imagem': main_prod.get('caminho_imagem'),
+                'ativo_catalogo': main_prod.get('ativo_catalogo', False),
+                'variants': variants_list
+            })
+        return render_template('catalogo.html',
+                               produtos=produtos_para_template,
+                               total_pages=total_pages,
+                               current_page=page,
+                               search_query=search_query,
+                               tabela_preco_selecionada=tabela_preco_selecionada,
+                               categorias=categorias,
+                               categoria_selecionada=categoria_selecionada,
+                               cores=cores,
+                               cor_selecionada=cor_selecionada)
+    except Exception as e:
+        print("ERRO GRAVE NO CATALOGO:", e)
+        import traceback
+        traceback.print_exc()
+        flash(f'Erro ao carregar produtos no catálogo: {str(e)}')
+        return render_template('catalogo.html', produtos=[], total_pages=0, current_page=1, search_query=search_query, tabela_preco_selecionada=tabela_preco_selecionada, categorias=categorias, categoria_selecionada=categoria_selecionada, cores=cores, cor_selecionada=cor_selecionada)
+
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(host='0.0.0.0', port=5000, debug=True) 

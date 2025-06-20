@@ -9,6 +9,28 @@
 <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
 <!-- Adicionar SweetAlert2 para feedback visual -->
 <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css" rel="stylesheet">
+<style>
+@media (max-width: 576px) {
+  .search-container .row > div,
+  .filter-section .d-flex {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+  .search-container .form-label,
+  .filter-section .filter-title {
+    margin-bottom: 0.25rem;
+  }
+  .product-card {
+    margin-bottom: 1rem;
+  }
+  .variants-list {
+    font-size: 0.95em;
+  }
+  .btn, .form-control, .form-select {
+    font-size: 1em;
+  }
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -18,59 +40,57 @@
 <div class="search-container mb-4">
     <form method="GET" action="{{ url_for('galeria') }}" id="searchForm">
         <div class="row g-3">
-            <div class="col-md-6">
+            <div class="col-12 col-md-6">
                 <label for="search_input_galeria" class="form-label">Buscar Produtos</label>
                 <input type="text" 
                        id="search_input_galeria" 
                        name="search" 
-                       class="form-control search-input" 
+                       class="form-control search-input w-100" 
                        value="{{ search_query if search_query else '' }}"
                        placeholder="Digite o nome do produto..."
                        data-tooltip="Busque por nome, código ou descrição">
             </div>
-            <div class="col-md-4">
+            <div class="col-12 col-md-4">
                 <label for="filter_categoria" class="form-label">Categoria</label>
-                <select class="form-select" id="filter_categoria" name="categoria">
+                <select class="form-select w-100" id="filter_categoria" name="categoria">
                     <option value="">Todas as Categorias</option>
                     {% for categoria in categorias %}
                         <option value="{{ categoria }}" {% if categoria_selecionada == categoria %}selected{% endif %}>{{ categoria }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">
+            <div class="col-12 col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100 mb-2 mb-md-0">
                     <i class="material-symbols-outlined">search</i> Buscar
                 </button>
             </div>
         </div>
-        
         <!-- Filtros Avançados -->
         <div class="row mt-3">
             <div class="col-12">
-                <button class="btn btn-link" type="button" data-bs-toggle="collapse" data-bs-target="#filtrosAvancados">
+                <button class="btn btn-link w-100 text-start" type="button" data-bs-toggle="collapse" data-bs-target="#filtrosAvancados">
                     Filtros Avançados <i class="material-symbols-outlined">expand_more</i>
                 </button>
             </div>
         </div>
-        
         <div class="collapse" id="filtrosAvancados">
             <div class="row g-3 mt-2">
-                <div class="col-md-3">
+                <div class="col-12 col-md-4">
                     <label for="filter_cor" class="form-label">Cor</label>
-                    <select class="form-select" id="filter_cor" name="cor">
+                    <select class="form-select w-100" id="filter_cor" name="cor">
                         <option value="">Todas as Cores</option>
                         {% for cor in cores %}
                             <option value="{{ cor }}" {% if cor_selecionada == cor %}selected{% endif %}>{{ cor }}</option>
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-6 col-md-4">
                     <label for="filter_preco_min" class="form-label">Preço Mínimo</label>
-                    <input type="number" class="form-control" id="filter_preco_min" name="preco_min">
+                    <input type="number" class="form-control w-100" id="filter_preco_min" name="preco_min">
                 </div>
-                <div class="col-md-3">
+                <div class="col-6 col-md-4">
                     <label for="filter_preco_max" class="form-label">Preço Máximo</label>
-                    <input type="number" class="form-control" id="filter_preco_max" name="preco_max">
+                    <input type="number" class="form-control w-100" id="filter_preco_max" name="preco_max">
                 </div>
             </div>
         </div>
@@ -92,15 +112,14 @@
         ] %}
         {% for tabela_campo, tabela_label in tabelas_preco %}
             <a href="{{ url_for('galeria', page=current_page, search=search_query, tabela_preco=tabela_campo, categoria=categoria_selecionada, cor=cor_selecionada) }}"
-               class="btn {% if tabela_campo == tabela_preco_selecionada %}btn-primary{% else %}btn-outline-primary{% endif %}">
+               class="btn {% if tabela_campo == tabela_preco_selecionada %}btn-primary{% else %}btn-outline-primary{% endif %} mb-2 mb-md-0">
                 {{ tabela_label }}
             </a>
         {% endfor %}
     </div>
-    {# Botão Limpar Filtros: aparece apenas se algum filtro estiver selecionado #}
     {% if search_query or categoria_selecionada or request.args.get('cor') or request.args.get('preco_min') or request.args.get('preco_max') %}
     <div class="mt-3">
-        <a href="{{ url_for('galeria') }}" class="btn btn-outline-secondary">
+        <a href="{{ url_for('galeria') }}" class="btn btn-outline-secondary w-100">
             <i class="material-symbols-outlined">close</i> Limpar Filtros
         </a>
     </div>
@@ -115,22 +134,23 @@
 {% endif %}
 
 <!-- Grid de Produtos -->
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="produtosGrid">
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4" id="produtosGrid">
     {% for produto_agrupado in produtos %}
         <div class="col">
-            <div class="card product-card" data-codigo-base="{{ produto_agrupado.codigo_base }}">
+            <div class="card product-card h-100">
                 {% if current_user.is_authenticated and current_user.role == 'dono' %}
+                    <input type="hidden" name="todos_codigos_produto[]" value="{{ produto_agrupado.variants[0].codigo_produto }}">
                     <a href="{{ url_for('editar_precos', codigo_base=produto_agrupado.codigo_base) }}" class="text-decoration-none text-dark">
                 {% else %}
                     <a href="{{ url_for('produto_detalhe', codigo_base=produto_agrupado.codigo_base) }}" class="text-decoration-none text-dark">
                 {% endif %}
                     {% if produto_agrupado.caminho_imagem %}
                         <img src="{{ url_for('static', filename=produto_agrupado.caminho_imagem) }}" 
-                             class="card-img-top product-image" 
+                             class="card-img-top product-image img-fluid" 
                              alt="{{ produto_agrupado.descricao_produto }}"
                              loading="lazy">
                     {% else %}
-                        <div class="product-image-placeholder d-flex justify-content-center align-items-center bg-light text-muted">
+                        <div class="product-image-placeholder d-flex justify-content-center align-items-center bg-light text-muted" style="height:200px;">
                             <i class="material-symbols-outlined">image</i>
                             <span class="ms-2">Sem Imagem</span>
                         </div>
@@ -138,7 +158,6 @@
                     <div class="card-body">
                         <h5 class="card-title">{{ produto_agrupado.descricao_produto }}</h5>
                         <p class="card-text text-muted">Código: {{ produto_agrupado.codigo_base }}</p>
-                        
                         <!-- Variantes -->
                         {% if produto_agrupado.variants %}
                             <div class="variants-list mt-3">
@@ -152,7 +171,6 @@
                         {% endif %}
                     </div>
                 </a>
-                
                 {% if current_user.is_authenticated and current_user.role == 'dono' %}
                     <div class="card-footer bg-transparent border-top-0">
                         <div class="form-check">
@@ -173,46 +191,43 @@
 </div>
 
 {% if current_user.is_authenticated and current_user.role == 'dono' %}
-    <div class="mt-4 text-center">
-        <button type="submit" class="btn btn-primary btn-lg" id="salvarDecisoes">
-            <i class="material-symbols-outlined">save</i> Salvar Decisões
-        </button>
-    </div>
+<div class="mt-4 text-center">
+    <button type="submit" class="btn btn-primary btn-lg w-100 w-md-auto" id="salvarDecisoes">
+        <i class="material-symbols-outlined">save</i> Salvar Decisões
+    </button>
+</div>
 </form>
 {% endif %}
 
 <!-- Paginação -->
 <nav aria-label="Navegação de Produtos" class="mt-4">
-    <ul class="pagination justify-content-center">
+    <ul class="pagination justify-content-center flex-wrap">
         <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
-            <a class="page-link" href="{{ url_for('galeria', page=1, search=search_query, tabela_preco=tabela_preco_selecionada) }}">
+            <a class="page-link" href="{{ url_for('galeria', page=1, search=search_query, tabela_preco=tabela_preco_selecionada, categoria=categoria_selecionada, cor=cor_selecionada) }}">
                 <i class="material-symbols-outlined">first_page</i>
             </a>
         </li>
         <li class="page-item {% if current_page == 1 %}disabled{% endif %}">
-            <a class="page-link" href="{{ url_for('galeria', page=current_page - 1, search=search_query, tabela_preco=tabela_preco_selecionada) }}">
+            <a class="page-link" href="{{ url_for('galeria', page=current_page - 1, search=search_query, tabela_preco=tabela_preco_selecionada, categoria=categoria_selecionada, cor=cor_selecionada) }}">
                 <i class="material-symbols-outlined">chevron_left</i>
             </a>
         </li>
-
         {% set start_page = (current_page - 2) if (current_page - 2) > 0 else 1 %}
         {% set end_page = (current_page + 2) if (current_page + 2) <= total_pages else total_pages %}
-
         {% for page_num in range(start_page, end_page + 1) %}
-            <li class="page-item {% if page_num == current_page %}active{% endif %}">
-                <a class="page-link" href="{{ url_for('galeria', page=page_num, search=search_query, tabela_preco=tabela_preco_selecionada) }}">
-                    {{ page_num }}
-                </a>
-            </li>
+        <li class="page-item {% if page_num == current_page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('galeria', page=page_num, search=search_query, tabela_preco=tabela_preco_selecionada, categoria=categoria_selecionada, cor=cor_selecionada) }}">
+                {{ page_num }}
+            </a>
+        </li>
         {% endfor %}
-
         <li class="page-item {% if current_page == total_pages or total_pages == 0 %}disabled{% endif %}">
-            <a class="page-link" href="{{ url_for('galeria', page=current_page + 1, search=search_query, tabela_preco=tabela_preco_selecionada) }}">
+            <a class="page-link" href="{{ url_for('galeria', page=current_page + 1, search=search_query, tabela_preco=tabela_preco_selecionada, categoria=categoria_selecionada, cor=cor_selecionada) }}">
                 <i class="material-symbols-outlined">chevron_right</i>
             </a>
         </li>
         <li class="page-item {% if current_page == total_pages or total_pages == 0 %}disabled{% endif %}">
-            <a class="page-link" href="{{ url_for('galeria', page=total_pages, search=search_query, tabela_preco=tabela_preco_selecionada) }}">
+            <a class="page-link" href="{{ url_for('galeria', page=total_pages, search=search_query, tabela_preco=tabela_preco_selecionada, categoria=categoria_selecionada, cor=cor_selecionada) }}">
                 <i class="material-symbols-outlined">last_page</i>
             </a>
         </li>

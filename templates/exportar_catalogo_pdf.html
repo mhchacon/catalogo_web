@@ -180,10 +180,13 @@ document.getElementById('exportForm').addEventListener('submit', function(e) {
     const progressText = document.getElementById('progressText');
     
     const interval = setInterval(() => {
-        progress += 5;
-        if (progress <= 90) {
+        if (progress < 90) {
+            progress += 5;
             progressBar.style.width = progress + '%';
             progressText.textContent = 'Gerando catálogo... ' + progress + '%';
+        } else {
+            progressBar.style.width = '90%';
+            progressText.textContent = 'Finalizando...';
         }
     }, 500);
     
@@ -208,6 +211,8 @@ document.getElementById('exportForm').addEventListener('submit', function(e) {
         a.download = 'catalogo_luzarte.pdf';
         document.body.appendChild(a);
         a.click();
+        // Abrir o PDF em uma nova aba
+        window.open(url, '_blank');
         window.URL.revokeObjectURL(url);
         a.remove();
         
@@ -218,6 +223,19 @@ document.getElementById('exportForm').addEventListener('submit', function(e) {
             progressBar.style.width = '0%';
             progressText.textContent = 'Preparando o catálogo...';
         }, 2000);
+
+        // Aviso para iOS/Safari
+        setTimeout(() => {
+            if (/iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream) {
+                Swal && Swal.fire({
+                    icon: 'info',
+                    title: 'Atenção no iPhone/iPad',
+                    html: 'O PDF pode abrir em tela cheia. Para salvar, toque em <b>compartilhar</b> e depois em <b>Salvar em Arquivos</b> ou <b>Salvar no dispositivo</b>.',
+                    confirmButtonText: 'Entendi',
+                    timer: 9000
+                });
+            }
+        }, 1200);
     })
     .catch(error => {
         clearInterval(interval);

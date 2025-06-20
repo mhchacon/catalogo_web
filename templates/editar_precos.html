@@ -3,6 +3,34 @@
 {% block title %}Editar Preços - Grupo {{ codigo_base }}{% endblock %}
 
 {% block content %}
+<style>
+@media (max-width: 576px) {
+  .btn-group-mobile {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .btn-group-mobile .btn {
+    flex: 1 1 0;
+    min-width: 0;
+    font-size: 1rem;
+    padding-left: 0.2rem;
+    padding-right: 0.2rem;
+  }
+  #tabela-precos td, #tabela-precos th {
+    padding: 0.3rem 0.2rem;
+    font-size: 0.95em;
+  }
+  #tabela-precos input.form-control {
+    font-size: 1em;
+    padding: 0.2rem 0.2rem;
+    min-width: 70px;
+    max-width: 100px;
+  }
+}
+.table-responsive {
+  overflow-x: auto;
+}
+</style>
 <div class="container py-4">
     <h3 class="mb-4">Editar Preços - Grupo {{ codigo_base }} <span class="text-muted" style="font-size:1.1em;">{{ descricao_produto }}</span></h3>
     <form method="POST">
@@ -15,9 +43,9 @@
                 <label for="valor_fixo" class="form-label">Ajuste em Valor (R$)</label>
                 <input type="text" class="form-control" id="valor_fixo" placeholder="Ex: 1,50" autocomplete="off">
             </div>
-            <div class="col-md-4 d-flex align-items-end gap-2">
-                <button type="button" class="btn btn-info w-50" id="btn-previsualizar">Gerar Pré-visualização</button>
-                <button type="button" class="btn btn-warning w-50" id="btn-limpar">Limpar</button>
+            <div class="col-md-4 d-flex align-items-end btn-group-mobile">
+                <button type="button" class="btn btn-info" id="btn-previsualizar">Gerar Pré-visualização</button>
+                <button type="button" class="btn btn-warning" id="btn-limpar">Limpar</button>
             </div>
         </div>
         <div class="table-responsive">

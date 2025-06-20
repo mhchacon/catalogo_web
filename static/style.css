@@ -1,11 +1,17 @@
 /* Estilos Gerais */
 :root {
     --primary-color: #2c3e50;
-    --secondary-color: #34495e;
-    --accent-color: #3498db;
-    --success-color: #2ecc71;
-    --warning-color: #f1c40f;
-    --danger-color: #e74c3c;
+    --primary-hover: #233140;
+    --primary-light: #e7f1ff;
+    --primary-dark: #1a232c;
+    --secondary-color: #6c757d;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #0dcaf0;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+    --accent-color: #2c3e50;
     --light-gray: #f8f9fa;
     --dark-gray: #343a40;
 }
@@ -113,15 +119,16 @@ body {
 }
 
 .page-link {
-    color: var(--primary-color);
+    color: var(--primary-color) !important;
     border: none;
     margin: 0 2px;
     border-radius: 5px;
 }
 
 .page-item.active .page-link {
-    background-color: var(--accent-color);
-    border-color: var(--accent-color);
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: #fff !important;
 }
 
 /* Responsividade */
@@ -191,4 +198,28 @@ body {
 [data-tooltip]:hover:before {
     opacity: 1;
     visibility: visible;
+}
+
+.btn-primary {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: #fff !important;
+}
+.btn-primary:hover, .btn-primary:focus {
+    background-color: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
+    color: #fff !important;
+}
+.btn-outline-primary {
+    color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    background: transparent !important;
+}
+.btn-outline-primary:hover, .btn-outline-primary:focus {
+    background-color: var(--primary-color) !important;
+    color: #fff !important;
+    border-color: var(--primary-color) !important;
+}
+.btn, .btn:focus {
+    box-shadow: none !important;
 } 
